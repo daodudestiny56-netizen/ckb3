@@ -95,7 +95,7 @@ export function App() {
 
     // Create Blob from binary data
     const buffer = hexStringToUint8Array(res.content.toString().slice(2));
-    const blob = new Blob([buffer], { type: res.contentType });
+    const blob = new Blob([buffer as unknown as BlobPart], { type: res.contentType });
     const url = URL.createObjectURL(blob);
     setImageURL(url);
   };
