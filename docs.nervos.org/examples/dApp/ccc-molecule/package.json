@@ -1,0 +1,22 @@
+{
+  "name": "ccc-molecule",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "basic": "tsx watch src/basic.ts",
+    "example": "tsx watch src/full-example.ts",
+    "build": "tsup src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.4"
+  },
+  "dependencies": {
+    "@ckb-ccc/shell": "^1.1.6"
+  }
+}

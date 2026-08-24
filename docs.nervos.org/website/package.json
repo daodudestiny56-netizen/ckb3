@@ -1,0 +1,56 @@
+{
+  "name": "docs.nervos.org",
+  "version": "2.54.0",
+  "description": "Official docs website for Nervos CKB",
+  "license": "MIT",
+  "scripts": {
+    "examples": "docusaurus-examples",
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "test:tutorial-header": "node --test src/components/TutorialHeader/selectTools.test.mjs",
+    "serve": "docusaurus serve",
+    "type": "module",
+    "gen-term": "node scripts/generate-key-terms.mjs",
+    "fmt": "prettier --write . --ignore-path .prettierignore",
+    "link:check": "../scripts/check-urls.sh",
+    "link:report": "node ../scripts/compare-link-report.js",
+    "publish-gh-pages": "docusaurus-publish",
+    "write-translations": "docusaurus-write-translations",
+    "version": "docusaurus-version",
+    "rename-version": "docusaurus-rename-version",
+    "swizzle": "docusaurus swizzle",
+    "deploy": "docusaurus deploy",
+    "docusaurus": "docusaurus",
+    "prepare": "cd .. && husky website/.husky"
+  },
+  "lint-staged": {
+    "*": [
+      "prettier --write . --ignore-path .prettierignore"
+    ]
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "3.3.2",
+    "@docusaurus/tsconfig": "3.3.2",
+    "@docusaurus/types": "3.3.2",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^2.5.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@docusaurus/core": "3.3.2",
+    "@docusaurus/plugin-client-redirects": "3.3.2",
+    "@docusaurus/preset-classic": "3.3.2",
+    "clsx": "^1.1.1",
+    "connect": "^3.7.0",
+    "hast-util-is-element": "1.1.0",
+    "prism-react-renderer": "^2.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rehype-katex": "^5.0.0",
+    "remark": "^15.0.1",
+    "remark-math": "^3.0.1",
+    "unist-util-visit": "^5.0.0"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}

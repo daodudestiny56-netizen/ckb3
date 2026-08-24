@@ -1,0 +1,161 @@
+---
+id: quick-start
+title: Quick Start (5min)
+description: "Set up a local CKB devnet with OffCKB and choose the right next path for building dApps, scripts, nodes, or core concepts."
+keywords:
+  - getting-started
+  - devnet
+  - offckb
+  - dapp
+  - script
+audience:
+  - dApp developers
+  - Script developers
+  - Node operators
+related:
+  - /docs/dapp/transfer-ckb
+  - /docs/script/rust/rust-quick-start
+  - /docs/getting-started/how-ckb-works
+  - /docs/ckb-fundamentals/cell-model
+difficulty: beginner
+last_reviewed: 2026-06-24
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import Tooltip from "@components/Tooltip";
+import ExampleLink from "@site/src/components/ExampleLink";
+
+# Quick Start (5min)
+
+Welcome to the Nervos CKB ecosystem! This guide will help you set up your local development environment in just a few minutes. After that, you can explore the various paths to build on CKB.
+
+## Start Your Local Devnet
+
+We recommend using [offCKB](https://www.npmjs.com/package/@offckb/cli) to quickly set up a local CKB Devnet for development.
+
+### Install OffCKB
+
+```bash
+npm install -g @offckb/cli
+```
+
+:::info
+Throughout this documentation, we use offckb/cli version **>=0.4.0**. You can always run the above command to update to the latest version.
+:::
+
+### Start the Devnet
+
+```mdx-code-block
+<Tabs>
+  <TabItem value="start-devnet" label="Command">
+```
+
+```bash
+offckb node
+```
+
+```mdx-code-block
+  </TabItem>
+  <TabItem value="show-start-devnet" label="Response">
+```
+
+```bash
+Launching CKB devnet Node...
+CKB devnet RPC Proxy server running on http://127.0.0.1:28114
+```
+
+```mdx-code-block
+</TabItem>
+</Tabs>
+```
+
+Your local CKB blockchain is currently active with a proxy RPC endpoint at [localhost:28114](http://localhost:28114). To stop the chain, press `CTRL+C` in the terminal. To resume where you left off, simply run `offckb node` again.
+
+If you need to start fresh with a new chain, run the following command before starting the node:
+
+```mdx-code-block
+<Tabs>
+  <TabItem value="clean-node-data" label="Command">
+```
+
+```bash
+offckb clean
+```
+
+```mdx-code-block
+  </TabItem>
+  <TabItem value="node-data-cleaned" label="Response">
+```
+
+```bash
+Chain data cleaned.
+```
+
+```mdx-code-block
+</TabItem>
+</Tabs>
+```
+
+:::tip
+OffCKB also provides pre-funded test accounts, built-in <Tooltip>Scripts</Tooltip> like [Omnilock](https://github.com/cryptape/omnilock) and [Spore-contract](https://github.com/sporeprotocol/spore-contract), and useful debugging tools. Check out the [OffCKB documentation](/docs/sdk-and-devtool/offckb) for more details.
+:::
+
+---
+
+## Choose Your Path
+
+Now that your Devnet is running, choose your path to start building on CKB:
+
+### 🚀 Build a DApp
+
+Learn how to build decentralized applications that interact with the CKB blockchain:
+
+- [**View and Transfer CKB**](/docs/dapp/transfer-ckb) — Learn how CKB balance transfers work and build your first dApp (2-5 min)
+- [**Store Data on Cell**](/docs/dapp/store-data-on-cell) — Store arbitrary data on the CKB blockchain (2-5 min)
+- [**Create a Fungible Token**](/docs/dapp/create-token) — Issue your own custom tokens using the xUDT standard (5-10 min)
+- [**Create a Digital Object (DOB)**](/docs/dapp/create-dob) — Build on-chain digital assets using the Spore Protocol (5-10 min)
+
+### 🔐 Write Smart Contracts (Scripts)
+
+CKB uses **Rust** as the primary language for writing on-chain smart contracts (Scripts). Get started with:
+
+- [**Rust Quick Start**](/docs/script/rust/rust-quick-start) — Set up your Rust environment and write your first Script (5-15 min)
+- [**Script Basics**](/docs/script/intro-to-script) — Understand how Scripts work on CKB
+- [**Program Languages for Script**](/docs/script/program-language-for-script) — Explore available programming languages for Script development
+
+:::note
+While CKB supports multiple programming languages for Script development, we currently recommend **Rust** for production use due to its performance, memory safety, and mature tooling support.
+:::
+
+### 📚 Learn Core Concepts
+
+Deep dive into CKB's unique architecture:
+
+- [**How CKB Works**](/docs/getting-started/how-ckb-works) — Understand CKB's design philosophy
+- [**Cell Model**](/docs/ckb-fundamentals/cell-model) — Learn about CKB's UTXO-like data model
+- [**CKB-VM**](/docs/ckb-fundamentals/ckb-vm) — Explore the RISC-V based virtual machine
+
+---
+
+## Additional Resources
+
+- [**OffCKB CLI**](/docs/sdk-and-devtool/offckb) — Full documentation for the OffCKB tool
+- [**CCC SDK**](/docs/sdk-and-devtool/ccc) — CKB's official JavaScript/TypeScript SDK for building dApps
+- [**CKB CLI**](/docs/sdk-and-devtool/ckb-cli) — Command-line tool for interacting with CKB nodes
+
+---
+
+## Next Steps
+
+Ready to dive deeper? Here are some recommendations based on your interests:
+
+| If you want to...                            | Start with...                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Build a web frontend that interacts with CKB | [Transfer CKB Tutorial](/docs/dapp/transfer-ckb)                                            |
+| Issue tokens or NFTs                         | [Create a Fungible Token](/docs/dapp/create-token) or [Create a DOB](/docs/dapp/create-dob) |
+| Write on-chain smart contracts               | [Rust Quick Start](/docs/script/rust/rust-quick-start)                                      |
+| Understand CKB's unique features             | [How CKB Works](/docs/getting-started/how-ckb-works)                                        |
+| Run a CKB node                               | [Run a Node](/docs/node/node-overview)                                                      |
+
+Happy building! 🎉

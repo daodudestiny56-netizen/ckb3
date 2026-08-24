@@ -1,0 +1,180 @@
+---
+id: transfer-ckb
+title: Transfer CKB
+description: "Build a simple dApp that generates accounts, checks CKB balances, creates a transfer transaction, pays fees, and broadcasts it."
+keywords:
+  - dapp
+  - tutorial
+  - ccc
+  - transaction
+  - cell-model
+audience:
+  - dApp developers
+related:
+  - /docs/getting-started/quick-start
+  - /docs/sdk-and-devtool/ccc
+  - /docs/dapp/write-message
+  - /docs/ckb-fundamentals/cell-model
+difficulty: beginner
+last_reviewed: 2026-06-24
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import TutorialHeader from "@components/TutorialHeader";
+import Tooltip from "@components/Tooltip";
+import SetupProject from "./SetupProject.tsx";
+import SwitchToTestnet from "./_SwitchToTestnet.tsx";
+import ExampleLink from "@components/ExampleLink";
+
+# View and Transfer a CKB Balance
+
+<TutorialHeader time={"2 - 5 min"} tools={"dapp"} />
+
+## Tutorial Overview
+
+CKB is based on a UTXO-like <Tooltip>Cell Model</Tooltip>. Every <Tooltip>Cell</Tooltip> has a capacity limit, which represents both the CKB balance and how much data can be stored in the Cell simultaneously.
+
+Transferring balance in CKB involves consuming some input Cells from the sender's account and producing new output Cells which can be unlocked by the receiver's account. The amount transferred is equal to the total capacity of the consumed Cells.
+
+In this tutorial, you will learn how to write a simple dApp to transfer CKB balance from one account to another.
+
+## Setup Devnet & Run Example
+
+### Step 1: Download the Source Code
+
+To get started with the tutorial dApp, clone the repository and navigate to the appropriate directory:
+
+```bash
+git clone https://github.com/nervosnetwork/docs.nervos.org.git --depth 1
+cd docs.nervos.org/examples/dApp/simple-transfer
+```
+
+You can also read the full code online or download it <ExampleLink path="dApp/simple-transfer">here</ExampleLink>.
+
+### Step 2: Start the Devnet
+
+<SetupProject imageSrc="img/dapps/transfer-dapp.jpg" />
+
+## Behind the Scene
+
+Open the `lib.ts` file in your project and check out the `generateAccountFromPrivateKey` function:
+
+```ts
+export const generateAccountFromPrivateKey = async (
+  privKey: string
+): Promise<Account> => {
+  const signer = new ccc.SignerCkbPrivateKey(cccClient, privKey);
+  const lock = await signer.getAddressObjSecp256k1();
+  return {
+    lockScript: lock.script,
+    address: lock.toString(),
+    pubKey: signer.publicKey,
+  };
+};
+```
+
+What this function does is generate the account's public key and address via a private key. Here, we need to construct and encode a <Tooltip>Lock Script</Tooltip> to obtain the corresponding address of this account. A Lock Script ensures that only the owner can consume their <Tooltip>Live Cells</Tooltip>.
+
+Here, we use the CKB standard Lock Script template, combining the [SECP256K1](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0024-ckb-genesis-script-list/0024-ckb-genesis-script-list.md#secp256k1blake160) signing algorithm with the BLAKE160 hashing algorithm, to build such a Lock Script. Note that different templates will yield different addresses when encoding the address, corresponding to different types of guard for the assets.
+
+Once we have the Lock Script of an account, we can determine how much balance the account has. The calculation is straightforward: we query and find all the Cells that use the same Lock Script and sum all these Cells' capacities; the sum is the balance.
+
+```ts
+export async function capacityOf(address: string): Promise<bigint> {
+  const addr = await ccc.Address.fromString(address, cccClient);
+  let balance = await cccClient.getBalance([addr.script]);
+  return balance;
+}
+```
+
+:::tip
+In Nervos CKB, Shannon is the smallest currency unit, with 1 CKB = 10^8 Shannons. This unit system is similar to Bitcoin's Satoshis, where 1 Bitcoin = 10^8 Satoshis. In the CCC SDK, values are mostly handled in the **Shannon unit**.
+:::
+
+Next, we can start to transfer balance. Check out the transfer function in `lib.ts`:
+
+```ts
+export async function transfer(
+  toAddress: string,
+  amountInCKB: string,
+  signerPrivateKey: string
+): Promise<string>;
+```
+
+The `transfer` function accepts parameters such as `toAddress`, `amountInShannon`, and `signerPrivateKey` to sign the transfer transaction.
+
+This transfer transaction collects and consumes as many capacities as needed using some Live Cells as the input Cells and produce some new output Cells. The Lock Script of all these new Cells is set to the new owner's Lock Script. In this way, the CKB balance is transferred from one account to another, marking the transition of Cells from old to new.
+
+Thanks to the [CCC SDK](/docs/sdk-and-devtool/ccc), we can use high-level helper function `ccc.Transaction.from` to perform the transfer transaction, which wraps the above logic.
+
+```ts
+export async function transfer(
+  toAddress: string,
+  amountInCKB: string,
+  signerPrivateKey: string
+): Promise<string> {
+  const signer = new ccc.SignerCkbPrivateKey(cccClient, signerPrivateKey);
+  const { script: toLock } = await ccc.Address.fromString(toAddress, cccClient);
+
+  // Build the full transaction to estimate the fee
+  const tx = ccc.Transaction.from({
+    outputs: [{ lock: toLock }],
+    outputsData: [],
+  });
+
+  // CCC transactions are easy to be edited
+  tx.outputs.forEach((output, i) => {
+    if (output.capacity > ccc.fixedPointFrom(amountInCKB)) {
+      alert(`Insufficient capacity at output ${i} to store data`);
+      return;
+    }
+    output.capacity = ccc.fixedPointFrom(amountInCKB);
+  });
+
+  // ....
+}
+```
+
+Next, we need to complete the inputs of the transaction.
+
+```ts
+//....
+
+// Complete missing parts for transaction
+await tx.completeInputsByCapacity(signer);
+await tx.completeFeeBy(signer, 1000);
+```
+
+Now we can use signer to sign and send the CKB transaction
+
+```ts
+// ...
+const txHash = await signer.sendTransaction(tx);
+console.log(
+  `Go to explorer to check the sent transaction https://pudge.explorer.nervos.org/transaction/${txHash}`
+);
+
+return txHash;
+```
+
+You can open the console on the browser to see the full transaction to confirm the process.
+
+---
+
+## Congratulations!
+
+After following this tutorial, you have mastered how balance transfers work on CKB. Here's a quick recap:
+
+- The capacity of a Cell indicates both the CKB balance and the amount of data that can be stored in the Cell simultaneously.
+- Transferring CKB balance involves transferring some Cells from the sender to the receiver.
+- We use `ccc.Transaction.from` from the CCC SDK to build the transfer transaction.
+
+## Next Step
+
+<SwitchToTestnet readmeLink="dApp/simple-transfer" />
+
+## Additional Resources
+
+- CKB transaction structure: [RFC-0022-transaction-structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md)
+- CKB data structure basics: [RFC-0019-data-structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0019-data-structures/0019-data-structures.md)

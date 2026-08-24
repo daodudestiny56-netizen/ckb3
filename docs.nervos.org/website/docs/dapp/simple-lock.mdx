@@ -1,0 +1,401 @@
+---
+id: simple-lock
+title: Build a Simple Lock
+description: "Build and deploy an educational CKB hash Lock Script, connect it to a frontend, and verify successful and rejected transactions."
+keywords:
+  - dapp
+  - tutorial
+  - script
+  - lock-script
+  - ckb-js-vm
+audience:
+  - dApp developers
+  - Script developers
+related:
+  - /docs/script/intro-to-script
+  - /docs/script/js/js-vm
+  - /docs/script/rust/rust-example-simple-lock
+  - /docs/dapp/transfer-ckb
+difficulty: advanced
+last_reviewed: 2026-08-21
+---
+
+import TutorialHeader from "@components/TutorialHeader";
+import StartDevnet from "./_StartDevnet.mdx";
+import ImgContainer from "@components/ImgContainer";
+import Tooltip from "@components/Tooltip";
+import CodeTabs from "./_CodeTabs.mdx";
+import ExampleLink from "@components/ExampleLink";
+import Link from "@docusaurus/Link";
+
+# Build a Simple Lock
+
+<TutorialHeader
+  time={"30 - 45 min first setup; 10 - 15 min afterward"}
+  requiredTools={[
+    <div key="git">
+      <Link href="https://git-scm.com/" target="_blank">
+        Git
+      </Link>
+    </div>,
+    <div key="node">
+      <Link href="https://nodejs.org/" target="_blank">
+        Node.js 18.18 or later
+      </Link>
+    </div>,
+    <div key="pnpm">
+      <Link href="https://pnpm.io/installation" target="_blank">
+        pnpm
+      </Link>
+    </div>,
+    <div key="offckb">
+      <Link to="/docs/node/run-devnet-node">OffCKB</Link>
+    </div>,
+    <div key="rust">
+      <Link href="https://rustup.rs/" target="_blank">
+        Rust
+      </Link>
+    </div>,
+    <div key="debugger">
+      <Link to="/docs/script/rust/rust-debug#debug-with-ckb-debugger">
+        ckb-debugger
+      </Link>
+    </div>,
+    <div key="protobuf">
+      Protobuf, only if installing <code>ckb-debugger</code> reports that{" "}
+      <code>protoc</code> is missing
+    </div>,
+  ]}
+>
+  <details>
+    <summary>Setup checks and platform notes</summary>
+    <p>Verify the required commands before starting:</p>
+    <pre>
+      <code>
+        {
+          "git --version\nnode --version\npnpm --version\noffckb --version\nckb-debugger --version"
+        }
+      </code>
+    </pre>
+    <p>
+      Installing <code>ckb-debugger</code> compiles native dependencies and can
+      take around ten minutes. Install it with{" "}
+      <code>cargo install ckb-debugger</code>. If installation reports{" "}
+      <code>Could not find protoc</code>, install protobuf and retry:
+    </p>
+    <pre>
+      <code>
+        {"# macOS\nbrew install protobuf\ncargo install ckb-debugger"}
+      </code>
+    </pre>
+    <p>
+      <strong>Windows:</strong>
+    </p>
+    <ul>
+      <li>
+        Add the npm global bin directory and{" "}
+        <code>{"%USERPROFILE%\\.cargo\\bin"}</code> to <code>PATH</code>.
+      </li>
+      <li>
+        If pnpm reports <code>ERR_PNPM_IGNORED_BUILDS</code>, approve the
+        required dependency build scripts and reinstall.
+      </li>
+      <li>
+        Keep the repository in a path without <code>#</code>; Next.js asset
+        resolution can fail in such paths.
+      </li>
+      <li>
+        If native tooling remains difficult to configure, use WSL or a Linux
+        Codespace.
+      </li>
+    </ul>
+  </details>
+</TutorialHeader>
+
+## What You Will Build
+
+This tutorial builds a full-stack CKB dApp with a <Tooltip>Lock Script</Tooltip> named `hash-lock`. The Script stores the hash of a secret in its arguments. A transaction may consume Cells protected by that Script only when its witness contains a preimage whose `blake2b-256` hash matches.
+
+You will:
+
+1. Build and deploy the Script with OffCKB;
+2. Derive a CKB address from the deployed code and a preimage hash;
+3. Deposit Devnet CKB into Cells protected by that address;
+4. Submit the correct preimage and wait for the transaction to commit.
+
+:::danger Educational use only
+
+This hash lock proves **knowledge of a secret**, not identity or ownership. The preimage is disclosed publicly when it is used, so do not use this example with valuable funds. The runnable flow supports Devnet and Testnet.
+
+:::
+
+The example uses JavaScript/TypeScript on [ckb-js-vm](/docs/script/js/js-vm). For production Scripts, start with [Rust](/docs/script/rust/rust-quick-start) and a signature-based authorization design.
+
+## Run the Example on Devnet
+
+### 1. Download the Source
+
+```bash
+git clone https://github.com/nervosnetwork/docs.nervos.org.git --depth 1
+cd docs.nervos.org/examples/dApp/simple-lock
+pnpm install
+```
+
+You can also inspect or download the example <ExampleLink path="dApp/simple-lock">from the repository</ExampleLink>.
+
+### 2. Start Devnet
+
+<StartDevnet />
+
+Resetting Devnet creates a new chain. Every OutPoint from the previous chain becomes invalid, so redeploy the contract after a reset.
+
+### 3. Build and Deploy the Script
+
+Build the TypeScript contract into CKB-VM bytecode:
+
+<CodeTabs
+  cmd={`pnpm build`}
+  response={`Building 1 contract(s): hash-lock
+📦 Bundling with esbuild...
+🔧 Compiling to bytecode...
+✅ Contract 'hash-lock' built successfully!
+🔗 Bytecode: dist/hash-lock.bc`}
+/>
+
+Deploy it to Devnet:
+
+<CodeTabs
+  cmd={`pnpm run deploy -- --network devnet`}
+  response={`🌐 Network: devnet
+contract hash-lock.bc deployed
+wait for tx confirmed on-chain...
+tx committed.
+🎉 Deployment completed successfully!
+🔄 Contract deployment synchronized: frontend/deployment/scripts.json
+🔄 System scripts synchronized: frontend/deployment/system-scripts.json
+📍 Contract OutPoint: 0x...:0
+📍 ckb-js-vm OutPoint: 0x...:15`}
+/>
+
+Deployment creates or updates `deployment/scripts.json` and refreshes `deployment/system-scripts.json`. The deploy script validates the `hash-lock.bc` and `ckb-js-vm` entries for Devnet, copies both files to `frontend/deployment/`, and fails if either copy does not match its source.
+
+An <Tooltip>OutPoint</Tooltip> is a transaction hash plus output index that identifies one specific Cell. OutPoints are network-specific. They become stale after redeployment, a network switch, or a Devnet reset.
+
+### 4. Start the Frontend
+
+```bash
+cd frontend
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). When `NEXT_PUBLIC_NETWORK` is unset, the frontend uses Devnet.
+
+Before enabling transfers, the page calls `getCellLive` for both required dependencies:
+
+- The Cell containing your deployed `hash-lock.bc` bytecode;
+- The Cell containing the `ckb-js-vm` interpreter.
+
+If either OutPoint is missing or stale, the page shows recovery guidance instead of constructing a transaction.
+
+### 5. Create and Fund a Hash Lock
+
+Enter a preimage such as `Hello World`. The frontend hashes it and creates a Lock Script that combines:
+
+- The `ckb-js-vm` interpreter code hash;
+- The deployed `hash-lock.bc` code hash and hash type;
+- The expected preimage hash.
+
+The page displays both a **contract code hash** and a **CKB address**. They are not interchangeable:
+
+- The code hash identifies deployed bytecode;
+- The CKB address encodes the complete Lock Script, including its arguments, and is the value you fund.
+
+Copy the generated hash-lock address and deposit Devnet CKB:
+
+```bash
+offckb deposit --network devnet <HASH_LOCK_ADDRESS> 300
+```
+
+The returned transaction hash proves only that the transaction was submitted. Wait for commitment, then refresh the page and confirm that **Total live capacity** shows the deposit before transferring.
+
+### 6. Optional: Test Rejection with a Wrong Preimage
+
+In **Preimage to reveal**, enter a value different from the one used to create the address and select **Transfer CKB**.
+
+The Script returns `11`, and the frontend reports that the preimage does not match. CKB rejects the transaction atomically: no output becomes chain state, the original input Cells remain live, and their capacity is unchanged.
+
+### 7. Transfer with the Correct Preimage
+
+Enter the original preimage and submit again. The frontend reports each phase:
+
+```text
+submitting → pending → committed
+```
+
+It keeps the transaction hash and uses `cccClient.waitTransaction()` rather than assuming that a fixed delay means success.
+
+<ImgContainer src="/img/dapps/simple-lock.png" />
+
+## How the Script Works
+
+The on-chain logic is intentionally small:
+
+1. read the expected hash from the Script arguments;
+2. read the preimage from the group-input witness;
+3. hash the preimage with CKB's `blake2b-256` function;
+4. return `0` when the hashes match or `11` when they do not.
+
+```typescript title="contracts/hash-lock/src/index.ts"
+import * as bindings from "@ckb-js-std/bindings";
+import { HighLevel, log, hashCkb, bytesEq } from "@ckb-js-std/core";
+
+function main() {
+  log.setLevel(log.LogLevel.Debug);
+  const expectedHash = new Uint8Array(HighLevel.loadScript().args).slice(35);
+  const witnessArgs = HighLevel.loadWitnessArgs(0, bindings.SOURCE_GROUP_INPUT);
+  const preimage = witnessArgs.lock!;
+  const actualHash = hashCkb(preimage);
+
+  if (!bytesEq(actualHash, expectedHash.buffer)) {
+    return 11;
+  }
+  return 0;
+}
+
+bindings.exit(main());
+```
+
+The first 35 bytes of `args` tell `ckb-js-vm` which bytecode to execute. The remaining 32 bytes contain the expected preimage hash.
+
+## How the Frontend Builds the Address
+
+```ts title="frontend/app/hash-lock.ts"
+export function generateAccount(hash: string) {
+  const { contract, ckbJsVm } = deploymentConfig();
+  const lockArgs =
+    "0x0000" +
+    contract.codeHash.slice(2) +
+    hexFrom(hashTypeToBytes(contract.hashType)).slice(2) +
+    hash;
+  const lockScript = ccc.Script.from({
+    codeHash: ckbJsVm.codeHash,
+    hashType: ccc.hashTypeFrom(ckbJsVm.hashType),
+    args: lockArgs,
+  });
+
+  return {
+    address: ccc.Address.fromScript(lockScript, cccClient).toString(),
+    lockScript,
+  };
+}
+```
+
+An address is an encoded representation of a Lock Script. The displayed balance is the sum of live, pure-CKB Cell capacities protected by that exact Script; typed or data-bearing Cells are not selected. It is not an account balance stored inside the contract.
+
+## How the Frontend Builds the Transaction
+
+```ts title="frontend/app/hash-lock.ts"
+export async function unlock(
+  fromAddr: string,
+  toAddr: string,
+  amountInCKB: string,
+  preimage: string
+): Promise<string> {
+  const fromScript = (await ccc.Address.fromString(fromAddr, cccClient)).script;
+  const toScript = (await ccc.Address.fromString(toAddr, cccClient)).script;
+  const amount = ccc.fixedPointFrom(amountInCKB);
+  const { contractCellDep, ckbJsVmCellDep } = deploymentConfig();
+  const readSigner = new ccc.SignerCkbScriptReadonly(cccClient, fromScript);
+
+  const transaction = ccc.Transaction.from({
+    outputs: [{ lock: toScript, capacity: amount }, { lock: fromScript }],
+    outputsData: ["0x", "0x"],
+  });
+
+  await transaction.addCellDeps(contractCellDep, ckbJsVmCellDep);
+  await transaction.completeInputsByCapacity(readSigner);
+  transaction.setWitnessArgsAt(
+    0,
+    ccc.WitnessArgs.from({ lock: stringToBytesHex(preimage) })
+  );
+  await transaction.completeFeeChangeToOutput(readSigner, 1, 1000);
+  assertOutputCapacities(transaction);
+
+  return cccClient.sendTransaction(transaction);
+}
+```
+
+Both CellDeps are required. `ckb-js-vm` provides the interpreter, while `hash-lock.bc` provides the program it loads.
+
+The recipient output has a fixed requested capacity. The second output receives the remaining capacity after the fee and intentionally uses the original hash lock.
+
+### Occupied Capacity
+
+A valid Cell must reserve enough capacity to store its complete structure. The requirement depends on its Lock Script, optional Type Script, and output data:
+
+```text
+occupied capacity = (CellOutput occupied bytes + output-data bytes) × 1 CKB
+```
+
+Therefore, 61 CKB is not a universal minimum. The frontend calculates and validates the actual occupied capacity of both outputs after fee completion.
+
+The transaction order also matters: the witness changes transaction size, so it is set before the final fee is calculated. See the [CCC transaction composition guide](https://docs.ckbccc.com/en/docs/guides/compose-transactions) for the supported patterns.
+
+## Security: What This Example Does Not Prove
+
+The witness contains the preimage in public transaction data. Anyone observing a pending or committed transaction can read it. The Script checks only the hash; it does not check who submitted the transaction or which recipient should benefit.
+
+This frontend intentionally demonstrates another unsafe behavior: it returns change to the same hash lock. After the preimage is disclosed:
+
+- returned change is protected by a public secret;
+- untouched Cells using the same hash are also vulnerable;
+- another party may copy the preimage and construct a competing transaction.
+
+For real assets, use a standard signature-protected change address and bind authorization to the intended transaction. If a protocol genuinely needs a hash preimage, combine it with signatures, unique secrets, and an appropriate timeout or refund path.
+
+## Run on Testnet
+
+Testnet requires a separate deployment because Devnet OutPoints do not exist there.
+
+1. Create a Testnet private key and fund its address from the [CKB Testnet Faucet](https://faucet.nervos.org/).
+2. From the example root, deploy with the funded key:
+
+   ```bash
+   pnpm run deploy -- --network testnet --privkey 0x...
+   ```
+
+3. The deploy command validates and synchronizes the new Testnet contract and system-script artifacts automatically.
+4. Start the frontend for Testnet:
+
+   ```bash
+   cd frontend
+   NEXT_PUBLIC_NETWORK=testnet pnpm dev
+   ```
+
+5. Confirm the page reports both dependencies as **ready** before depositing Testnet CKB.
+
+Never reuse a Devnet address, transaction hash, or contract OutPoint on Testnet.
+
+## About Mainnet
+
+This example does not currently provide a direct Mainnet deployment path. OffCKB supports direct contract deployment only to Devnet and Testnet, and its Mainnet system-script export does not include the `ckb-js-vm` dependency required by this contract. Removing the local network check would only move the failure later in the deployment.
+
+For Mainnet-state inspection and debugging, use an isolated [OffCKB Mainnet fork](https://github.com/ckb-devrel/offckb) and follow its replay-risk guidance. The intentionally unsafe change behavior described above still applies, and this tutorial's frontend remains configured for Devnet and Testnet.
+
+## Conclusion
+
+You deployed bytecode as a Cell, used its code hash to construct a Lock Script, funded live Cells protected by that Script, and verified both rejected and committed state transitions. You also saw why a preimage is a bearer proof rather than proof of ownership, why dependency OutPoints must match the active network, and why every output must satisfy its own occupied-capacity requirement.
+
+:::danger Not for production
+
+This simple hash lock clearly demonstrates how hash-based authorization works, but its security weaknesses make it unsuitable for protecting real funds. Production applications should use a stronger authorization design.
+
+:::
+
+## Additional Resources
+
+- [Rust Quick Start](/docs/script/rust/rust-quick-start)
+- [Rust Simple Lock Example](/docs/script/rust/rust-example-simple-lock)
+- [CCC transaction composition](https://docs.ckbccc.com/en/docs/guides/compose-transactions)
+- [RFC-0022: CKB Transaction Structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md)
+- [RFC-0019: CKB Data Structures](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0019-data-structures/0019-data-structures.md)

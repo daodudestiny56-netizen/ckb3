@@ -1,0 +1,177 @@
+---
+id: store-data-on-cell
+title: Store Data on Cell
+description: "Build a dApp that writes a text message into CKB Cell data, then reads the Live Cell back and decodes the stored value."
+keywords:
+  - dapp
+  - tutorial
+  - cell-data
+  - cell-model
+  - ccc
+audience:
+  - dApp developers
+related:
+  - /docs/dapp/transfer-ckb
+  - /docs/ckb-fundamentals/cell-model
+  - /docs/tech-explanation/outputs-data
+  - /docs/sdk-and-devtool/ccc
+difficulty: beginner
+last_reviewed: 2026-06-24
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import TutorialHeader from "@components/TutorialHeader";
+import Tooltip from "@components/Tooltip";
+import SetupProject from "./SetupProject.tsx";
+import SwitchToTestnet from "./_SwitchToTestnet.tsx";
+import ExampleLink from "@components/ExampleLink";
+
+# Store Data on Cell
+
+<TutorialHeader time={"2 - 5 min"} tools={"dapp"} />
+
+## Tutorial Overview
+
+In this tutorial, you will learn how to tuck a nifty message - "**Hello CKB!**" - into a <Tooltip>Cell</Tooltip> on the CKB blockchain. Imagine it as sending a message in a bottle, but the ocean is digital, and the bottle is a super secure, tamper-proof CKB Cell!
+
+As you learned from the first tutorial, [Transfer CKB](/docs/dapp/transfer-ckb), a Cell can store any type of data in the data field of the Cell structure. Here, we will encode a text message as a hex string and store it in the data field. Once your words are encoded and inscribed into the blockchain, we'll get the hex string back from the same Cell and decode it to the original text message. The encoding and decoding method is up to you; we use `TextDecoder` for simplicity throughout the tutorial.
+
+## Setup Devnet & Run Example
+
+### Step 1: Download the Source Code
+
+To get started with the tutorial dApp, clone the repository and navigate to the appropriate directory:
+
+```bash
+git clone https://github.com/nervosnetwork/docs.nervos.org.git --depth 1
+cd docs.nervos.org/examples/dApp/store-data-on-cell
+```
+
+You can also read the full code online or download it <ExampleLink path="dApp/store-data-on-cell">here</ExampleLink>.
+
+### Step 2: Start the Devnet
+
+<SetupProject imageSrc="img/dapps/store-data.png" />
+
+## Behind the Scene
+
+Open the `lib.ts` file in your project. It lists the important functions that do most of the work for the project.
+
+### Encode & Decode Message
+
+Since a Cell's data field can store any type of data, we need to design an encoding and decoding method for the message we want to read and write on-chain.
+
+```ts
+export function utf8ToHex(utf8String: string): string {
+  const encoder = new TextEncoder();
+  const uint8Array = encoder.encode(utf8String);
+  return (
+    "0x" +
+    Array.prototype.map
+      .call(uint8Array, (byte: number) => {
+        return ("0" + (byte & 0xff).toString(16)).slice(-2);
+      })
+      .join("")
+  );
+}
+
+export function hexToUtf8(hexString: string): string {
+  const decoder = new TextDecoder("utf-8");
+  const uint8Array = new Uint8Array(
+    hexString.match(/[\da-f]{2}/gi)!.map((h) => parseInt(h, 16))
+  );
+  return decoder.decode(uint8Array);
+}
+```
+
+### Build Transaction
+
+Now, check out the core function `buildMessageTx`. It requires two parameters:
+
+- **Private Key**: Your private key, used for transaction authorization.
+- **Message**: The message you want to write into the Cell.
+
+The function then constructs a transaction to create a new Cell that incorporates the specified message in the data field
+
+```ts
+export async function buildMessageTx(
+  onChainMemo: string,
+  privateKey: string
+): Promise<string> {
+...
+}
+```
+
+As always, we first create a transaction using CCC:
+
+```ts
+const onChainMemoHex = utf8ToHex(onChainMemo);
+const tx = ccc.Transaction.from({
+  outputs: [{ lock: signerAddress.script }],
+  outputsData: [onChainMemoHex],
+});
+```
+
+Here we build the output Cell to store the message data by putting the hex format of the text message into the data field of the output Cell.
+
+Next, we ask CCC to complete the transaction for us with a transaction fee:
+
+```ts
+// Complete missing parts for transaction
+await tx.completeInputsByCapacity(signer);
+await tx.completeFeeBy(signer, 1000);
+```
+
+Lastly, we use signer to sign and broadcast the transaction to the blockchain network through rpc:
+
+```ts
+const txHash = await signer.sendTransaction(tx);
+```
+
+Therefore, the message is successfully stored on a Cell and lives in the blockchain.
+
+### Read Cell Messages
+
+To read the message we stored on-chain, we need to retrieve the <Tooltip>Live Cell</Tooltip> we just produced, read the data field from the Cell and decode the message back to the text format.
+
+To retrieve a specific Live Cell, we use the RPC method `getLiveCell` with `OutPoint` parameters:
+
+- **txHash**: The transaction hash from which the Cell originated.
+- **output Cell index**: The position index of the Cell within the transaction's outputs.
+
+Given a specific transaction hash, we can locate the output Cells of the transaction. By knowing the position index of the Cell, we can find out the specific one.
+
+For the way we built the transaction, we know that the Live Cell that carries the message is always the first one of the output Cells. So we set `index = "0x0"`
+
+```ts
+export async function readOnChainMessage(txHash: string, index = "0x0") {
+  const cell = await cccClient.getCellLive({ txHash, index }, true);
+  if (cell == null) {
+    return alert("Cell not found, please retry later");
+  }
+  const data = cell.outputData;
+  const msg = hexToUtf8(data);
+  alert("read msg: " + msg);
+  return msg;
+}
+```
+
+---
+
+## Congratulations!
+
+After following this tutorial, you have mastered how storing data on Cells works on CKB. Here's a quick recap:
+
+- We can store arbitrary data in the `data` field of Cell.
+- We need a way to encode and decode our data for understanding and using our raw on-chain data later.
+- To read the storing data, we need to locate the Live Cell that we put our data in. This can be done by querying Cells meets our requirement or by getting the Cell directly with a known `OutPoint` through RPC.
+
+## Next Step
+
+<SwitchToTestnet readmeLink="dApp/store-data-on-cell" />
+
+## Additional Resources
+
+- CKB transaction structure: [RFC-0022-transaction-structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md)
+- CKB data structure basics: [RFC-0019-data-structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0019-data-structures/0019-data-structures.md)

@@ -7,8 +7,8 @@ Whenever any code modifications, file creations, or edits are completed in this 
    `git add .`
 
 2. **Commit with a descriptive message**:
-   `git commit -m "<brief description of the changes made>"`
+   `git commit -m "<descriptive summary of changes>"`
 
 3. **Push to Remote Repository**:
-   Push the changes to `git@github.com:daodudestiny56-netizen/ckb3.git` on the active branch:
    `git push origin HEAD`
+

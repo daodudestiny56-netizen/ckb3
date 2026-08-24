@@ -1,0 +1,26 @@
+@import "@css/customVariables.css";
+
+.tooltipContainer {
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline !important;
+  text-decoration-style: dotted !important;
+  text-underline-offset: 4px !important;
+  pointer-events: auto;
+}
+
+.tooltipPortal {
+  background-color: var(--surface-inverse);
+  color: var(--text-inverse);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  position: fixed;
+  max-width: 400px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+.tooltipPortalOpen {
+  opacity: 1;
+  pointer-events: auto;
+}

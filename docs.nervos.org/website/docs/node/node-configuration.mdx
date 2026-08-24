@@ -1,0 +1,466 @@
+---
+id: node-config
+title: Node Configuration
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+## Introduction
+
+CKB uses configuration files stored in `<config-dir>`, which by default is the current working directory. You can change this using the `-C <path>` argument to specify a different directory. For example:
+
+```bash
+ckb -C node1 run
+```
+
+- This command tells CKB to use the `node1/` directory as the config directory, where it expects to find `ckb.toml` and related files.
+
+Different subcommands expect different config filenames:
+
+- `ckb run` uses `ckb.toml`
+- `ckb miner` uses `ckb-miner.toml`
+- `ckb import` and `ckb export` also use `ckb.toml`
+
+The `ckb init` command helps initialize a config directory by generating the necessary files. Some config files may refer to other files, such as `chain.spec` in `ckb.toml`, or `system_cells` in a chain spec file. These referenced paths can be either absolute or relative to the config file’s own location. For example, with this directory structure:
+
+```bash
+ckb.toml
+└── specs/dev.toml
+    └── cells/secp256k1_sighash_all
+```
+
+- `ckb.toml` would refer to `specs/dev.toml`
+- `dev.toml` would refer to the cell file as `cells/secp256k1_sighash_all`
+
+This article covers the following configuration topics:
+
+- [Node Discoverability](#node-discoverability)
+- [Light client support and WSS access](#light-client-support--wss-access)
+- [Proxy and onion support](#proxy-and-toronion)
+- [Fee estimator](#fee-estimator)
+- [Run multiple nodes](#run-multiple-nodes)
+
+## Node Discoverability
+
+Starting in [CKB v0.202.0](https://github.com/nervosnetwork/ckb/releases/tag/v0.202.0), a new `HolePunching` protocol is enabled by default in `support_protocols`. We recommend keeping `HolePunching` enabled to improve node discoverability.
+
+```bash title='ckb.toml'
+# Supported protocols list, only "Sync" and "Identify" are mandatory, others are optional
+support_protocols = ["Ping", "Discovery", "Identify", "Feeler", "DisconnectMessage", "Sync", "Relay", "Time", "Alert", "LightClient", "Filter", "HolePunching"]
+```
+
+The `HolePunching` protocol helps nodes behind [NAT](https://en.wikipedia.org/wiki/Network_address_translation) become publicly accessible — significantly improving peer connectivity and making it easier to appear on tools like [Node Probe](https://nodes.ckb.dev/).
+
+- No manual configuration is needed if you initialized your config with **CKB v0.202.0 or later** — the `HolePunching` protocol is already included by default in the `support_protocols` list.
+- If you're upgrading from an older version, make sure your `ckb.toml` includes `HolePunching` in the `support_protocols` list after replacing your binary.
+
+## Light Client Support & WSS Access
+
+CKB full nodes support the [Light Client Protocol](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0044-ckb-light-client/0044-ckb-light-client.md) by default. No configuration is needed — if you're running a standard full node, it will automatically respond to light client peers using the built-in P2P protocol.
+
+Browsers cannot connect to P2P networks directly. Instead, they must connect to your node over WebSocket with TLS (`wss://`). To support this, you need to deploy a TLS proxy in front of your node that converts WSS traffic into standard TCP.
+
+### Prerequisites for WSS Setup
+
+Before you begin, ensure the following:
+
+- Your CKB node running and listening on its default P2P port (`8115`)
+- You have deployed a CKB node (v0.200.0 or later) and it is running normally.
+- You own a domain name and can modify its DNS records (e.g., via Cloudflare, Namecheap, or Alibaba Cloud).
+- You have a valid TLS certificate for your domain (You can use a commercial provider like DigiCert or a free tool like Certbot.)
+- Your server has ports 80 and 443 open to the public.
+- Nginx is installed with the Stream module enabled, which will be used to forward encrypted WebSocket traffic to the CKB node.
+
+### Check If Nginx Has the Stream Module
+
+```bash
+nginx -V 2>&1 | grep -- --with-stream
+```
+
+If you see `--with-stream --with-stream_ssl_module --with-stream_ssl_preread_module`, you're good to go.
+
+If not, you must recompile Nginx with these flags:
+
+```bash
+./configure \
+  --prefix=/usr/local/nginx \
+  --with-stream \
+  --with-stream_ssl_module \
+  --with-stream_ssl_preread_module
+```
+
+<details>
+  <summary>Working Example of Nginx Config</summary>
+
+Here’s a working example that:
+
+- Routes TCP (P2P) and WSS traffic differently based on TLS version
+- Proxies WSS traffic to a separate internal port (8443)
+
+You need to replace:
+
+- `ckb.example.com` with your domain
+- `8118` with your node’s P2P port
+- `443` with the external public port
+- TLS cert paths with your actual file paths
+
+```bash
+# Global settings
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 768;
+}
+
+# TCP/TLS stream routing
+stream {
+    log_format stream_log '$remote_addr - $remote_port [$time_local] '
+                          'Protocol: $ssl_preread_protocol '
+                          'Status: $status '
+                          'Bytes_Sent: $bytes_sent '
+                          'Bytes_Received: $bytes_received '
+                          'Session_Time: $session_time '
+                          'Upstream: $upstream_addr';
+
+    map $ssl_preread_protocol $upstream {
+        default      backend_tcp;
+        "TLSv1.2"    backend_wss_http;
+        "TLSv1.3"    backend_wss_http;
+    }
+
+    upstream backend_tcp {
+        server 127.0.0.1:8118;
+    }
+
+    upstream backend_wss_http {
+        server 127.0.0.1:8443;
+    }
+
+    server {
+        listen 443;
+        proxy_pass $upstream;
+        ssl_preread on;
+
+        access_log /var/log/nginx/stream_access.log stream_log;
+        error_log /var/log/nginx/stream_error.log;
+    }
+}
+
+# WSS HTTP proxy (for browsers)
+http {
+    sendfile on;
+    keepalive_timeout 65;
+    client_max_body_size 10m;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    gzip on;
+
+    server {
+        listen 8443 ssl;
+        server_name ckb.example.com;
+
+        ssl_certificate /etc/nginx/ssl/fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+
+        location / {
+            proxy_pass http://127.0.0.1:8118;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+        }
+    }
+}
+
+```
+
+</details>
+
+### Traffic Routing Summary
+
+| Client Type | Route                                                                                                                                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TCP         | TCP Client -> [ckb.example.com:443](http://ckb.example.com:443/) -> Nginx (stream, ssl_preread) -> backend_tcp -> [ckb node 8118]                                                                   |
+| WSS         | WSS Client -> [ckb.example.com:443](http://ckb.example.com:443/) -> Nginx (stream, ssl_preread) -> backend_wss_http -> 127.0.0.1:8443 -> Nginx (http, TLS decryption, WebSocket) -> [ckb node 8118] |
+
+### Reload Nginx
+
+```bash
+sudo nginx -t
+sudo nginx -s reload
+```
+
+### Add DNS Record
+
+Go to your DNS provider and add an **A record** pointing `ckb.example.com` to your server’s public IP.
+
+### Modify Config to Advertise Your Public Address
+
+Uncomment the `public_addresses` in your `ckb.toml`.
+
+```bash
+### Specify the public and routable network addresses
+public_addresses = ["/dns4/ckb.example.com/tcp/443"]
+```
+
+Remember to replace `ckb.example.com` with your own domain.
+
+Then restart your CKB node.
+
+### Verify Configuration
+
+1. Check your node’s public address:
+
+```mdx-code-block
+<Tabs>
+  <TabItem value="command" label="Command">
+```
+
+```bash
+curl -s -H "Content-Type: application/json" \
+  -d '{ "id": 2, "jsonrpc": "2.0", "method": "local_node_info", "params": [] }' \
+  http://127.0.0.1:8114 | jq '.result.addresses[].address'
+```
+
+```mdx-code-block
+  </TabItem>
+  <TabItem value="response" label="Response">
+```
+
+```bash
+"/dns4/ckb.example.com/tcp/443/p2p/<PeerID>"
+```
+
+```mdx-code-block
+  </TabItem>
+</Tabs>
+```
+
+2. Use it as a bootnode in another node
+
+Initialize a new CKB node (v.0.200.0 or later). Update the bootnodes section in `ckb.toml` to the following:
+
+```bash
+bootnodes = ["/dns4/ckb.example.com/tcp/443/p2p/<PeerID>"]
+```
+
+Remember to replace `<PeerID>` with the one you retrieved from step 1.
+For the wasm-based light client in browsers, the address should start with `wss`:
+
+```bash
+bootnodes = ["/dns4/ckb.example.com/tcp/443/wss/p2p/<PeerID>"]
+```
+
+3. Start the second node
+
+Start the second node and check the logs. If it begins syncing blocks successfully, your WSS setup is complete.
+
+## Proxy and Tor/Onion
+
+CKB supports [Tor/Onion](<https://en.wikipedia.org/wiki/Tor_(network)>), giving node operators better privacy and network resilience. To run a node over Tor, see this [guidance](/docs/node/run-node-over-tor).
+
+### Configuring CKB for Tor
+
+CKB’s Tor support is controlled via the `network.proxy` and Onion configuration fields.
+
+**ProxyConfig (`network.proxy`)**
+
+- `proxy_url`
+  User-specified SOCKS5 proxy address for outbound connections. Example: `proxy_url = "socks5://127.0.0.1:9050"`
+- `proxy_random_auth`
+  - Default: `true`. When enabled, CKB generates a random username and password for each connection.
+    :::note
+    Note: For non-Tor proxies that support but do NOT require authentication, set it to `false` to avoid connection failures.
+    :::
+  - See `IsolateSOCKSAuth` section in this doc: [Tor - The second-generation onion router](https://manpages.debian.org/testing/tor/torrc.5.en.html)
+
+**Other Config Keys**
+
+- `listen_on_onion = true`
+  - Enable or disable listening for incoming connections over Tor.
+  - When set to `true`, CKB automatically accepts inbound connections via the Onion network.
+  - The Onion listening address can be retrieved from logs or via the `local_node_info` RPC.
+- `p2p_listen_address = "127.0.0.1:8115"`
+  - Local P2P address for incoming Onion traffic.
+  - Only configure this if your node uses a different IPv4 listen address and port than the default `127.0.0.1`.
+- `onion_server = "127.0.0.1:9050"`
+  - Address and port of the Tor SOCKS5 server used for outbound connections to other Onion nodes.
+  - Default: `network.proxy.proxy_url`.
+- `tor_controller = "127.0.0.1:9051"`
+  - Address and port of Tor’s ControlPort for managing Onion services.
+  - Default: `127.0.0.1:9051`
+- `tor_password`
+  - Password for authenticating with the Tor ControlPort. Should match `HashedControlPassword` in your Tor configuration. You can create a Tor Hashed Password using: `tor --hash-password "my_secret_password"`
+  - Leave this empty if no authentication is required: `tor_password = ""`
+- `onion_external_port`
+  - The external port that the Onion service will expose.
+
+### Verifying CKB Is Running Over Tor/Onion
+
+After starting CKB with `listen_on_onion = true` and ensuring that Tor is running, you can confirm Onion integration through logs or RPC.
+
+#### Option 1 — Check the logs
+
+When CKB creates the hidden service via Tor’s ControlPort, it logs the generated `.onion` listening address. Look for a message similar to the following, meaning the Onion service is active.
+
+```toml
+2025-12-11 09:29:11.930 +00:00 GlobalRt-16 INFO ckb_onion::onion_service  CKB has started listening on the onion hidden network, the onion service address is: /onion3/opnrrg67wtcg4kqhiclirn2nxd7b6u3a73hym4obuoyicj3ithayorid:8115/p2p/QmSrc5RW4o3S9ukbJW199vQ1xL7ssKPcudRy6fXvTbNEbz
+
+```
+
+#### Option 2 — Use the `local_node_info` RPC
+
+Call the JSON-RPC method to inspect your node’s addresses:
+
+```bash
+curl -sX POST http://127.0.0.1:8114 \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "id": 42,
+    "jsonrpc": "2.0",
+    "method": "local_node_info",
+    "params": []
+  }' | jq '.result.addresses'
+
+[
+  {
+    "address": "/onion3/opnrrg67wtcg4kqhiclirn2nxd7b6u3a73hym4obuoyicj3ithayorid:8115/p2p/QmSrc5RW4o3S9ukbJW199vQ1xL7ssKPcudRy6fXvTbNEbz",
+    "score": "0x1"
+  },
+  {
+    "address": "/ip6/::/tcp/8115",
+    "score": "0x1"
+  },
+  {
+    "address": "/ip4/0.0.0.0/tcp/8115",
+    "score": "0x1"
+  },
+  {
+    "address": "/ip6/::/tcp/8115/ws",
+    "score": "0x1"
+  },
+  {
+    "address": "/ip4/0.0.0.0/tcp/8115/ws",
+    "score": "0x1"
+  }
+]
+```
+
+In the response, check the `addresses` array for an address containing a `.onion` hostname. If you see an Onion entry there, CKB is successfully running behind the Tor network.
+
+## Fee Estimator
+
+The **Fee Estimator** is an experimental feature introduced in **CKB v0.120.0** to help developers and users determine optimal transaction fee rates based on recent block activity.
+
+To use the Fee Estimator, you must:
+
+1. Specify a fee estimation algorithm in `ckb.toml`
+
+```bash
+[fee_estimator]
+## Specifies the fee estimates algorithm. Current algorithms: ConfirmationFraction, WeightUnitsFlow.
+algorithm = "WeightUnitsFlow"
+```
+
+2. Make sure the `Experiment` module is included in the list in `ckb.toml` . This module is enabled by default.
+
+```bash
+# List of API modules: ["Net", "Pool", "Miner", "Chain", "Stats", "Subscription", "Experiment", "Debug", "Indexer", "RichIndexer"]
+modules = ["Net", "Pool", "Miner", "Chain", "Stats", "Subscription", "Experiment"]
+```
+
+Once your node is running and synced, you can query the estimated fee rate using:
+
+```bash
+echo '{ "id": 1, "jsonrpc": "2.0", "method": "estimate_fee_rate", "params": [] }' \
+    | curl -s -H "Content-Type: application/json" -d @- "http://localhost:8114" \
+    | jq
+```
+
+result:
+
+```bash
+{
+  "jsonrpc": "2.0",
+  "result": "0x3e8",
+  "id": 1
+}
+```
+
+Check out [this spec](https://docs.nervos.org/docs/tech-explanation/fee-estimator) to learn more about fee estimator.
+
+## Run Multiple Nodes
+
+You can run multiple CKB nodes on the same machine (e.g., for local Devnet testing) by setting up separate configuration directories and customizing their ports.
+
+1. Create separate directories for each node by running :
+
+```bash
+mkdir node1 node2
+```
+
+2. Initialize each node with the same dev chain and genesis message.
+
+Each CKB node requires its own configuration directory. You can specify the directory using the `-C <path>` option, which tells CKB where to store the node’s config files and chain data.
+When using the `dev` chain, nodes will generate a random genesis block unless you explicitly set the same `--genesis-message`. Nodes with different genesis blocks cannot connect to each other, so it’s important to use the same message across all Devnet nodes.
+
+```bash
+ckb -C node1 init --chain dev --genesis-message dev-genesis
+ckb -C node2 init --chain dev --genesis-message dev-genesis
+```
+
+`dev-genesis` is just an example — you can replace it with any string as long as it’s identical.
+
+:::note
+`genesis-message` is only required for the `dev` chain. Mainnet and testnet use fixed genesis blocks and do not require `--genesis-message`.
+:::
+
+3. Edit `node2/ckb.toml` to avoid port conflicts:
+   In your node2’s `ckb.toml,` change the default ports:
+   - RPC port (`8114`) → `8116`
+   - P2P port (`8115`) → `8117`
+
+```bash
+[rpc]
+listen_address = "127.0.0.1:8116"
+
+[p2p]
+listen_address = "/ip4/0.0.0.0/tcp/8117"
+```
+
+4. Start node1:
+
+```bash
+ckb -C node1 run
+```
+
+5. Optional: Connect node2 to node1
+
+- Find the P2P address from node1 logs (e.g., `/ip4/127.0.0.1/tcp/8115/p2p/PeerID`)
+- Add it to `bootnodes` in `node2/ckb.toml`:
+
+```bash
+bootnodes = ["/ip4/127.0.0.1/tcp/8115/p2p/PeerID"]
+```
+
+Remeber to replace `PeerID` with your actual one.
+
+6. Start node2:
+
+```bash
+ckb -C node2 run
+```

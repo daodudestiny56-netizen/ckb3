@@ -1,0 +1,94 @@
+---
+id: ckb-address
+title: CKB Address
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import Tooltip from "@components/Tooltip";
+
+An address is a long string of numbers and letters that is used to receive blockchain assets.
+
+## Accounts vs. Addresses on CKB
+
+Bitcoin was the first blockchain to separate the concept of accounts from addresses. One account can be associated with multiple addresses, a design intended to improve privacy.
+
+With the rise of Ethereum, many users became accustomed to a different model: one account = one address. Each account corresponds to a single address that is reused across applications. While this simplifies interaction, it also links all activity to the same address, which reduces privacy.
+
+On CKB, the model follows more closely to Bitcoin: **one account can be linked to multiple addresses**.
+
+Accounts and addresses are independent concepts. An account is derived from a key pair while an address is generated from the underlying [Lock Script](/docs/tech-explanation/lock-script). Even under the same account, different Lock Scripts produce different addresses.
+
+## How CKB Addresses Are Generated
+
+To understand how this model is implemented, we need to look at how a CKB address is constructed. A CKB address is more than a random string — it encodes the underlying [Lock Script](/docs/tech-explanation/lock-script), adhering to Bitcoin's [Bech32m address format (BIP-350)](https://github.com/sipa/bips/blob/bip-bech32m/bip-0350.mediawiki). The Lock Script defines how ownership is verified and consists of three fields: `code_hash`, `hash_type`, and `args`. For details on these fields, see [Script](/docs/tech-explanation/script).
+
+### Get Full Payload
+
+To generate a CKB address, the Lock Script is encoded into a byte array, named "payload," which is then wrapped into the final address format.
+
+The Full payload format encodes all data fields of the Lock Script using Bech32m encoding:
+
+```
+payload = 0x00 | code_hash | hash_type | args
+```
+
+### Wrap Into Address
+
+The payload is wrapped into an address following [Bitcoin Bech32 address format (BIP-173)](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki) or [Bitcoin bech32m address format (BIP-350)](https://github.com/sipa/bips/blob/bip-bech32m/bip-0350.mediawiki), using Bech32/Bech32m encoding and a [BCH checksum](https://en.wikipedia.org/wiki/BCH_code).
+
+:::note
+The original Bech32/Bech32m format limits strings to 90 characters. However, we have removed this length restriction, similar to [BOLT](https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md). For strings longer than 90 characters, the error correction function is disabled to prevent the risk of incorrect corrections, which we do not intend to use.
+:::
+
+A Bech32/Bech32m string consists of three parts, with the last 6 characters serving as a **checksum**:
+
+- **Human-readable part**: "ckb" for CKB Mainnet and "ckt" for the Testnet
+- **Separator**: always being "1"
+- **Data part**: base32 encoded. The table below provides a translation for Base32 encoding:
+
+|     | 0   | 1   | 2   | 3   | 4   | 5   | 6   | 7   |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| +0  | q   | p   | z   | r   | y   | 9   | x   | 8   |
+| +8  | g   | f   | 2   | t   | v   | d   | w   | 0   |
+| +16 | s   | 3   | j   | n   | 5   | 4   | k   | h   |
+| +24 | c   | e   | 6   | m   | u   | a   | 7   | l   |
+
+The flow chart below outlines the process of encoding a Lock Script into a payload by adding a 6-byte BCH, followed by Base32 encoding, and finally a human-readable prefix and checksum are appended.
+
+<img
+  alt="Encoding a Lock Script into a payload"
+  src={useBaseUrl("img/tech_explanation/lock-script-encoding-into-payload.png")}
+  width="688"
+/>
+
+## Example: Generating a Full Address
+
+```
+code_hash to encode:     9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8
+hash_type to encode:     01
+args to encode:          b39bbc0b3673c7d36450bc14cfcdad2d559c6c64
+---
+full address generated:  ckb1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdnnw7qkdnnclfkg59uzn8umtfd2kwxceqxwquc4
+```
+
+## How CKB Addresses Reflect Ownership Rules (with Demo)
+
+An CKB addresses represents **ownership rules**, rather than an account. Each address is derived from a Lock Script that governs how the associated funds can be spent. Unlike blockchains with fixed script logic, this design gives users granular control over which code they trust to manage their assets.
+
+CKB provides two ways to reference Scripts:
+
+- **Type Hash (Upgradable):** References a script via a <Tooltip>Type_ID</Tooltip>. The script can be updated while preserving the address, offering convenience but requiring trust in the updater.
+- **Data Hash (Immutable):** References the exact script binary, freezing it at a specific version. This ensures stability and predictability, but requires manual updates for changes.
+
+This design allows users to decide between convenience and immutability, freeze scripts to specific versions, opt into updates on their own terms, or even run multiple script versions simultaneously. As a result, a single key can generate multiple valid addresses, each reflecting a different trust model.
+
+### Interactive Demo: Craft CKB Address
+
+Try the interactive demo [Craft CKB Address](https://craft-ckb-address.vercel.app) to see how one key combined with different Script references produce multiple addresses.
+
+<img
+  src="/img/tech_explanation/ckb_addr_demo_cover.png"
+  alt="Craft CKB Address Demo"
+  width="688"
+  height="327"
+/>

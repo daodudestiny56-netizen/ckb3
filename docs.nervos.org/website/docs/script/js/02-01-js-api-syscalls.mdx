@@ -1,0 +1,432 @@
+---
+id: js-api-syscalls
+title: "API (Syscalls)"
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import Link from "@docusaurus/Link";
+import TutorialHeader from "@components/TutorialHeader";
+import Tooltip from "@components/Tooltip";
+import ScriptTools from "./../_ScriptTools.mdx";
+
+# Syscalls
+
+In Script development, transaction-related functions such as `loadScript` (introduced in [Quick Start](./js-quick-start) guide) are frequently used.
+This chapter introduces [VM Syscalls](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0009-vm-syscalls/0009-vm-syscalls.md) and their corresponding high-level abstractions.
+
+## Syscalls (bindings)
+
+The **syscalls, enums, and constants** provided in the bindings are mostly direct wrappers around VM syscalls in `ckb-js-vm`.
+Function names and parameters closely match their VM counterparts.
+For full behavior details, refer to the corresponding RFCs.
+
+## QueryIter
+
+An advanced iterator to manipulate Cells, inputs, headers, and witnesses.
+
+```ts
+export type QueryFunction<T> = (
+  index: number,
+  source: bindings.SourceType,
+) => T;
+export class QueryIter<T> implements Iterator<T> {
+  private queryFn: QueryFunction<T>;
+  private index: number;
+  private source: bindings.SourceType;
+  ...
+}
+```
+
+:::note
+The functions listed in [Load Cells info](#load-cells-info) can be used with `QueryIter`.
+
+<details>
+  <summary>Custom QueryIter can also be constructed.</summary>
+  ```ts
+      let cellIters = new HighLevel.QueryIter(
+        HighLevel.loadCell,
+        bindings.SOURCE_INPUT
+      );
+      for (let it of cellIters) {
+        // ...
+      }
+
+      let iters = new HighLevel();
+    ```
+
+</details>
+:::
+
+## Load Cells Info
+
+The following functions are used to load transaction information.
+
+| Function                          | Parameters                                        | Return Type         |
+| --------------------------------- | ------------------------------------------------- | ------------------- |
+| `loadCell`                        | `index`: number<br/>`source`: bindings.SourceType | `CellOutput`        |
+| `loadInput`                       | `index`: number<br/>`source`: bindings.SourceType | `CellInput`         |
+| `loadWitness`                     | `index`: number<br/>`source`: bindings.SourceType | `ArrayBuffer`       |
+| `loadWitnessArgs`                 | `index`: number<br/>`source`: bindings.SourceType | `WitnessArgs`       |
+| `loadCellCapacity`                | `index`: number<br/>`source`: bindings.SourceType | `bigInt`            |
+| `loadCellOccupiedCapacity`        | `index`: number<br/>`source`: bindings.SourceType | `bigInt`            |
+| `loadCellData`                    | `index`: number<br/>`source`: bindings.SourceType | `ArrayBuffer`       |
+| `loadCellTypeHash`                | `index`: number<br/>`source`: bindings.SourceType | `ArrayBuffer\|null` |
+| `loadCellLock`                    | `index`: number<br/>`source`: bindings.SourceType | `Script`            |
+| `loadCellLockHash`                | `index`: number<br/>`source`: bindings.SourceType | `Bytes`             |
+| `loadCellType`                    | `index`: number<br/>`source`: bindings.SourceType | `Script \| null`    |
+| `loadHeaderEpochNumber`           | `index`: number<br/>`source`: bindings.SourceType | `bigInt`            |
+| `loadHeaderEpochStartBlockNumber` | `index`: number<br/>`source`: bindings.SourceType | `bigInt`            |
+| `loadHeaderEpochLength`           | `index`: number<br/>`source`: bindings.SourceType | `bigInt`            |
+| `loadHeader`                      | `index`: number<br/>`source`: bindings.SourceType | `Header`            |
+| `loadInputSince`                  | `index`: number<br/>`source`: bindings.SourceType | `bigInt`            |
+| `loadInputOutPoint`               | `index`: number<br/>`source`: bindings.SourceType | `OutPoint`          |
+
+**Parameters**
+
+- `index`: Index of the item to load
+- `source`: where the item is loaded from
+
+## loadTransaction
+
+Load the transaction information.
+
+```ts
+function loadTransaction(): Transaction;
+```
+
+**Return**
+
+- `Transaction` (Molecule struct)
+
+**Error**
+
+- Throws on system errors
+- Might throw out-of-memory error due to large data
+
+## loadTxHash
+
+Load the transaction hash
+
+```ts
+function loadTxHash(): Bytes;
+```
+
+**Return**
+
+- `Bytes`: The 32-byte hash of the current transaction.
+
+**Error**
+
+- Throws on system errors
+
+## loadScriptHash
+
+Load current Script hash
+
+```ts
+function loadScriptHash(): Bytes;
+```
+
+**Return**
+
+- `Bytes`: the 32-byte hash of the current Script
+
+**Error**
+
+- Throws on system errors
+
+## loadScript
+
+Load a Script
+
+```ts
+function loadScript(): Script;
+```
+
+**Return**
+
+- `Script`: the current executing Script.
+
+**Error**
+
+- Throws on system errors
+
+## findCellByDataHash
+
+Find the Cell whose `data_hash` matches the given `dataHash` by iterating through available Cells.
+
+```ts
+function findCellByDataHash(
+  dataHash: Bytes,
+  source: bindings.SourceType
+): number | null;
+```
+
+**Parameters**
+
+- `dataHash`: 32-byte data hash to search for.
+- `source`: The source location to search.
+
+**Return**
+
+- `number`: index of the first found Cell
+- `null` if nothing found.
+
+**Error**
+
+- Throws error if the given `dataHash` is not 32 bytes
+- Throws on system errors
+
+## lookForDepWithHash2
+
+Look for a dep Cell with specific code hash
+
+```ts
+function lookForDepWithHash2(codeHash: Bytes, hashType: number): number;
+```
+
+**Parameters**
+
+- `codeHash`: The 32-byte code hash to search for
+- `hashType`: The type of hash to search for (type or data)
+
+**Return**
+
+- `number`: index of the found Cell.
+
+**Error**
+
+- Throws error if the given `codeHash` is not 32 bytes
+- Throws error if the Cell is not found
+- Throws on system errors
+
+## lookForDepWithDataHash
+
+Look for a dep Cell with specific data hash
+
+```ts
+function lookForDepWithDataHash(dataHash: Bytes): number;
+```
+
+**Parameters**
+
+- `dataHash`: The 32-byte data hash to search for
+
+**Return**
+
+- `number`: The index of the found Cell
+
+**Error**
+
+- Throws error if the given `dataHash` is not 32 bytes
+- Throws error if Cell is not found
+- Throws on system errors
+
+## checkTypeId
+
+Validates that a Script follows the [Type ID](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md#type-id) rules. This is typically used to ensure a singleton Script (only one Live Cell of this type can exist).
+
+```ts
+export function checkTypeId(offset: number): void;
+```
+
+**Parameters**
+
+- `offset`: Byte offset in Script args where Type ID starts
+
+:::note
+`ckb-js-vm` reverses the first 35 byes of args, so `offset` must be ≥ 35.
+:::
+
+**Error**
+
+- Throws with `TypeIDError` code if validation fails, or ID cannot be retrieved.
+
+### How It Works
+
+- Extracts the 32-byte Type ID from Script args at the given offset.
+- Internally calls `validateTypeId` to perform low-level checks
+- Validation logic covers three scenarios:
+
+| Scenario | GroupInput | GroupOutput |
+| -------- | ---------- | ----------- |
+| Minting  | empty      | 1 Cell      |
+| Transfer | 1 Cell     | 1 Cell      |
+| Burning  | 1 Cell     | empty       |
+
+If multiple Cells are in either `GroupInput` or `GroupOutput`, the function throws an error.
+
+- For **Minting**, the following data is used to compute the Type ID (i.e., the hash):
+  - The first `CellInput` of the transaction (retrieved via `load_input(0, Source::Input)`);
+  - The index of the current Cell.
+- For **Transfer** and **Burning**, the function returns immediately.
+
+Since all input Cells in the transaction are consumed and the index ensures that no other Cell within the transaction can produce the same hash, uniqueness of the Type ID is guaranteed.
+
+<details>
+  <summary>Example: check-type-id</summary>
+
+The tests are located in [`type-id.test.ts`](https://github.com/nervosnetwork/docs.nervos.org/blob/master/examples/ckb-ts-script/packages/on-chain-script-tests/src/type-id.test.ts):
+
+- **Minting**: You need to create type-id using `inputCell` and `index`, then check it in the contract. The tests cover both successful and failed scenarios.
+- **Transaction**: Type ID is not re-checked. The tests verify that the transaction passes Type ID validation successfully.
+
+</details>
+
+## spawnCell
+
+Spawn a new process from a Cell.
+
+```ts
+export function spawnCell(
+  codeHash: ArrayBuffer,
+  hashType: number,
+  offset: number,
+  length: number,
+  args: SpawnArgs
+): number;
+```
+
+**Parameters**
+
+- `codeHash` : The code hash of the Cell to spawn
+- `hashType` : The hash type of the code (use SCRIPT*HASH_TYPE*\* constants)
+- `offset` : The offset in the Cell data. Defaults to 0.
+- `length` : The length of code to execute. Defaults to reading until the end of the data.
+- `args` : Spawn arguments including argv and inherited file descriptors
+
+**Return**
+
+- `number`: The process ID of the spawned process
+
+## spawn
+
+Spawn a new process from a specified source.
+
+```ts
+export function spawn(
+  index: number,
+  source: SourceType,
+  offset: number,
+  length: number,
+  args: SpawnArgs
+): number;
+```
+
+**Parameters**
+
+- `index` : The index of the source to spawn from
+- `source` : The type of source (use SOURCE\_\* constants)
+- `offset` : The offset in the source data. Default to 0.
+- `length` : The length of code to execute. Defaults to reading until the end of the data.
+- `args` : Spawn arguments including argv and inherited file descriptors.
+
+**Return**
+
+- `number`: The process ID of the spawned process
+
+## pipe
+
+Create a new pipe.
+
+```ts
+export function pipe(): [number, number];
+```
+
+**Return**
+
+- `[number, number]`: A [read_fd, write_fd] tuple of the pipe.
+
+## inheritedFds
+
+Get inherited file descriptors
+
+```ts
+export function inheritedFds(): number[];
+```
+
+**Return**
+
+- `number[]`: An array of inherited file descriptor numbers.
+
+## read
+
+Read from a file descriptor
+
+```ts
+export function read(fd: number, length: number): ArrayBuffer;
+```
+
+**Parameters**
+
+- `fd` : The file descriptor to read from.
+- `length` : Number of bytes to read.
+
+**Return**
+
+- `ArrayBuffer`: The read data.
+
+:::note
+The length of returned data might be smaller than `length`.
+:::
+
+## write
+
+Write data to a file descriptor
+
+```ts
+export function write(fd: number, data: ArrayBuffer): void;
+```
+
+**Parameters**
+
+- `fd` : The file descriptor to write to
+- `data` : The data to write as ArrayBuffer
+
+:::note
+
+All data will be written atomically - no partial writes will occur.
+If the full write cannot complete, an error is thrown.
+The function blocks until all data is written.
+:::
+
+## close
+
+Close a file descriptor
+
+```ts
+export function close(fd: number): void;
+```
+
+**Parameters**
+
+- `fd` : The file descriptor to close
+
+## wait
+
+Wait for a process to exit
+
+```ts
+export function wait(pid: number): number;
+```
+
+**Parameters**
+
+- `pid` : The process ID to wait for
+
+**Return**
+
+- `number`: The exit status of the process.
+
+## processId
+
+Get the current process ID
+
+```ts
+export function processId(): number;
+```
+
+**Return**
+
+- `number`: The current process ID

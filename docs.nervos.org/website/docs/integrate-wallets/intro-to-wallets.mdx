@@ -1,0 +1,49 @@
+---
+id: intro-to-wallets
+title: Intro to Wallets
+---
+
+import useBaseUrl from "@docusaurus/useBaseUrl";
+
+import Link from "@docusaurus/Link";
+import WalletCard from "@components/WalletCard";
+import CardLayout from "@components/CardLayout";
+import Tooltip from "@components/Tooltip";
+import { walletCardContents } from "./CardContents";
+
+Essential insights for CKB dApp developers, covering wallet choices, address specifics, and CKB transfer guidelines
+
+## CKB Wallet Options
+
+Crypto wallets store private keys to access cryptos. They come in two types: hot wallets (online) and cold wallets (offline). Hot wallets, such as web-based, desktop, and mobile wallets, offer convenience but pose higher risk. Cold wallets, including paper and hardware wallets, provide enhanced security by keeping keys offline.
+
+When it comes to storing and securing CKB assets, users have various options, including hot and cold wallets. While storing assets on exchanges is common, additional security can be achieved with dedicated wallets.
+
+These wallets listed below offer custody and security services tailored to CKB. For more information, refer to the respective guides for each wallet.
+
+<CardLayout colNum={[3, 2, 2, 1]}>
+  {walletCardContents.map(({ index, title, href, tags }) => (
+    <WalletCard key={index} title={title} href={href} tags={tags} />
+  ))}
+</CardLayout>
+---
+
+## CKB Address
+
+CKB address packages the <Tooltip>Lock Script</Tooltip> into a single line of verifiable and human-readable format, adhering to Bitcoin's [Bech32m address format (BIP-350)](https://github.com/sipa/bips/blob/bip-bech32m/bip-0350.mediawiki).
+
+The CKB address format is an application-level Cell Lock Script display recommendation.
+Here is an example: `ckb1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdnnw7qkdnnclfkg59uzn8umtfd2kwxceqxwquc4`.
+
+The Lock Script consists of 3 key parameters: `code_hash`, `hash_type`, and `args`. To decode the address and view the components and their attributes, use this tools: [CKB.tools/address](https://ckb.tools/).
+For detailed specifications, refer to [CKB Address](/docs/ckb-fundamentals/ckb-address) in the Tech Explanation.
+
+:::note
+
+A single public-private key pair can generate multiple Lock Scripts, consequently multiple addresses.
+
+:::
+
+## Requirements for CKB Transfers
+
+A single Cell requires at least 61 bytes of storage, equivalent to [61 CKBytes (CKB)](/docs/tech-explanation/capacity#capacity-mini). Allocating **62 CKB** is recommended to cover additional fees in practice.

@@ -1,0 +1,40 @@
+@import "@css/customVariables.css";
+
+.box {
+  border-radius: 20px;
+  padding: 1.5rem;
+  text-decoration: none !important;
+  background-color: var(--surface-accent);
+  color: var(--text-secondary) !important;
+  box-shadow: none;
+  line-height: 1.7 !important;
+}
+
+.subsection {
+  margin-bottom: 0.5em;
+}
+.toolList {
+  margin: 0;
+  padding-left: 2.5rem;
+}
+.details {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.details pre {
+  margin: 0.75rem 0;
+}
+.collapsibleHeader {
+  margin-left: -1.125rem;
+}
+.collapsibleText {
+  color: var(--text-link);
+}
+.expandedList {
+  padding-left: 2.5rem;
+}

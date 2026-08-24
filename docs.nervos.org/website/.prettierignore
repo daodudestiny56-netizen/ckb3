@@ -1,0 +1,30 @@
+# Ignore build artifacts
+build/
+dist/
+.docusaurus/
+node_modules/
+
+# Ignore configuration files
+config/
+.prettierignore
+.husky/
+package-lock.json
+yarn.lock
+.lychee.toml
+
+# Ignore specific files
+static/llms.txt
+static/llms-full.txt
+*.log
+reports/link-check/history.jsonl
+*.png
+*.jpg
+*.svg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+
+# Ignore specific directories
+# since it has a bug for mdx tsx code block
+docs/sdk-and-devtool/ccc.mdx

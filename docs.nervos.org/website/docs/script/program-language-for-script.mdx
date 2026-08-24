@@ -1,0 +1,84 @@
+---
+id: program-language-for-script
+title: "Program Languages for Script"
+---
+
+import Tooltip from "@components/Tooltip";
+
+# Program Languages for Script
+
+We have learned what a Script is and how a Script works. So, how do we write a Script then? What kind of programming language do I need to use?
+
+Unlike other blockchains, the CKB-VM resembles a real mini-computer based on [RISC-V](https://riscv.org/), so the CKB Script code also looks like a normal Unix-style executable program that we run on a computer.
+
+You can actually write Scripts in any programming language you want, as long as you have the proper toolchain.
+
+However, at the current stage, we recommend that you use [Rust](https://www.rust-lang.org/) to write CKB Scripts since it has a complete toolchain to work with CKB.
+
+:::info
+We will use `Rust` as the programming language across the tutorials on this website.
+:::
+
+## Rust
+
+Rust is widely used in developing core components of CKB due to its high performance and ease of use. Scripts often involve operations like signing, hashing, and handling large numbers. Rust’s superior performance helps reduce <Tooltip>cycles</Tooltip> consumption. Furthermore, as Scripts are critical for asset management, Rust’s memory safety features help minimize vulnerabilities, making it a **recommended choice for Script development** .
+
+We have also built some useful Rust libraries and template tools to help developers build Script:
+
+- CKB-STD: [https://github.com/nervosnetwork/ckb-std](https://github.com/nervosnetwork/ckb-std)
+- CKB_Testtools: [https://docs.rs/ckb-testtool/latest/ckb_testtool](https://docs.rs/ckb-testtool/latest/ckb_testtool)
+- Cargo-Generate Script Templates: [ckb-script-templates](https://github.com/cryptape/ckb-script-templates)
+
+## C
+
+You can also use [C](<https://en.wikipedia.org/wiki/C_(programming_language)>) language and [GCC](https://gcc.gnu.org/) to write and compile CKB Scripts to RISC-V binaries.
+
+Some of our developers have used this way to build Scripts like [sUDT](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0025-simple-udt/0025-simple-udt.md) and [xUDT](https://github.com/nervosnetwork/rfcs/pull/428). You can check [ckb-production-scripts](https://github.com/nervosnetwork/ckb-production-scripts/tree/master/c) for reference.
+
+- [ckb-c-stdlib](https://github.com/nervosnetwork/ckb-c-stdlib)
+
+## JavaScript
+
+JavaScript is a beginner-friendly language with a large user base and a mature ecosystem. Its usage on CKB differs from Rust or C because JS cannot be compiled directly into RISC-V instructions—it must be executed through an interpreter.
+
+To support this, we provide [ckb-js-vm](https://github.com/nervosnetwork/ckb-js-vm), which is built on top of [QuickJS](https://bellard.org/quickjs/). It enables JS scripts to run inside the CKB-VM. To reduce cycle consumption and improve performance, `ckb-js-vm` comes with built-in implementations of frequently used cryptographic algorithms (such as Secp256K1, Blake2b, and SMT), written in C for efficiency.
+
+That said, JavaScript's overall performance is still lower than that of compiled languages like Rust or C due to the overhead of interpretation. However, if you're already comfortable with JavaScript or are building prototypes, educational demos, or quick tooling, it remains a flexible and practical option.
+
+Useful packages:
+
+- [@ckb-js-std/bindings](https://www.npmjs.com/package/@ckb-js-std/bindings)
+- [@ckb-js-std/core](https://www.npmjs.com/package/@ckb-js-std/core)
+
+## Lua
+
+Lua is another interpreted language supported by the CKB-VM via [ckb-lua-vm](https://github.com/nervosnetwork/ckb-lua-vm).
+
+Like JavaScript, Lua scripts are executed by first deploying the interpreter as a Script on-chain and then running the Lua code within it. While this approach is less performant than using compiled languages, Lua is lightweight and minimal, making it a suitable option for constrained environments or developers who prefer a simple, embedded-style scripting language.
+
+- [ckb-lua-vm](https://github.com/nervosnetwork/ckb-lua-vm)
+
+## Golang, Ruby, Python...Too?
+
+Since the CKB-VM is akin to a real mini-computer, there's no reason you can't run different programming languages on this mini-computer, right?
+
+The answer is yes, you can run code written in any programming language on CKB. The way it works is that you first deploy a language-specific dependency as a Script on CKB, then run your code on top of this Script, and boom, it just works!
+
+Expanding from this path, we can also have Ruby on CKB via [mruby](https://github.com/mruby/mruby), and we could even have Bitcoin Script or EVM on-chain if we just compile their VMs and put them on-chain.
+
+If you would like to explore such paths, you can check the following two examples:
+
+- [Godwoken-Polyjuice](https://github.com/godwokenrises/godwoken/tree/develop/gwos-evm): implementation of EVM on CKB
+- [CKB Bitcoin VM](https://github.com/xxuejie/ckb-bitcoin-vm): A demonstration on validating Bitcoin Scripts on CKB-VM
+
+### Yes, I Know This Is Possible, But Won’t a VM on Top of a VM Be Slow?
+
+The answer really depends on your use case. Saying whether this will be slow isn't possible without actual benchmarks, which themselves are not meaningful unless applied to a real use case with standard hardware requirements. So, we'll need to wait and see if this really becomes an issue.
+
+Besides, we are actively working in this field to optimize both the CKB VM and the VMs running on top of the CKB VM to make them faster and more efficient :P
+
+### But What If I Still Want to Use a Script-Dedicated Language?
+
+If you come from the Ethereum community, you might be accustomed to using a dedicated programming language to write smart contracts, like [Solidity](https://soliditylang.org/).
+
+You might wonder if there is a similar option for CKB Scripts. Indeed, there is a dedicated programming language for CKB Scripts developed by the CKB community called [Cell-Script](https://github.com/cell-labs/cell-script). It is still in the early stages, but feel free to try it out and provide feedback to the community.

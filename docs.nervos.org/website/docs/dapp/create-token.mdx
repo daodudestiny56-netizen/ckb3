@@ -1,0 +1,245 @@
+---
+id: create-token
+title: Create a Fungible Token
+description: "Issue and query a custom fungible token on CKB using the xUDT standard, Type Scripts, Cell data, and the CCC SDK."
+keywords:
+  - dapp
+  - tutorial
+  - xudt
+  - type-script
+  - ccc
+audience:
+  - dApp developers
+related:
+  - /docs/assets-token-standards/xudt
+  - /docs/dapp/transfer-ckb
+  - /docs/dapp/create-dob
+  - /docs/sdk-and-devtool/ccc
+difficulty: intermediate
+last_reviewed: 2026-06-24
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import TutorialHeader from "@components/TutorialHeader";
+import Tooltip from "@components/Tooltip";
+import SetupProject from "./SetupProject.tsx";
+import SwitchToTestnet from "./_SwitchToTestnet.tsx";
+import ExampleLink from "@components/ExampleLink";
+
+# Create a Fungible Token
+
+<TutorialHeader time={"5 - 10 min"} tools={"dapp"} />
+
+## Tutorial Overview
+
+Unlike [ERC20(Ethereum)](https://eips.ethereum.org/EIPS/eip-20) and [BRC20(Bitcoin)](https://domo-2.gitbook.io/brc-20-experiment/), CKB uses a unique way to build custom tokens based on its UTXO-like <Tooltip>Cell Model</Tooltip>.
+
+In CKB, custom tokens are called User-Defined Tokens (UDTs). CKB defines a minimal standard for UDTs called [xUDT(extensible UDT)](/docs/assets-token-standards/xudt). In this tutorial, you will learn how to issue custom tokens using the pre-deployed `xUDT Script`.
+
+Steps to Issue a Custom Token with xUDT:
+
+1. Create a Special Cell: When you issue tokens, you create a special Cell representing a balance of your custom token, similar to how physical cash represents a balance of currency.
+2. Configure the Cell's Data: This Cell’s data field will store the token amount, while its Type Script will be the xUDT Script. The script’s args field will contain the Lock Script Hash of the issuer.
+3. Establish a Unique Token ID: The issuer’s Lock Script hash serves as the unique identifier for each custom token. Different Lock Script hashes represent different tokens, enabling secure and distinct transactions for each token type.
+
+While xUDT includes more advanced features, this tutorial focuses on its core concept. For more details on xUDT’s capabilities, you can explore the [full xUDT spec](https://github.com/XuJiandong/rfcs/blob/xudt/rfcs/0052-extensible-udt/0052-extensible-udt.md).
+
+## Setup Devnet & Run Example
+
+### Step 1: Download the Source Code
+
+To get started with the tutorial dApp, clone the repository and navigate to the appropriate directory:
+
+```bash
+git clone https://github.com/nervosnetwork/docs.nervos.org.git --depth 1
+cd docs.nervos.org/examples/dApp/xudt
+```
+
+You can also read the full code online or download it <ExampleLink path="dApp/xudt">here</ExampleLink>.
+
+### Step 2: Start the Devnet
+
+<SetupProject imageSrc="img/dapps/issue-token-dapp.jpg" />
+
+## Behind the Scenes
+
+### Issuing Custom Token
+
+Open the `lib.ts` file in your project and check out the `IssueToken` function:
+
+```ts
+export async function issueToken(privKey: string, amount: string) {
+  const signer = new ccc.SignerCkbPrivateKey(cccClient, privKey);
+  const lockScript = (await signer.getAddressObjSecp256k1()).script;
+  const xudtArgs = lockScript.hash() + "00000000";
+
+  const typeScript = await ccc.Script.fromKnownScript(
+    signer.client,
+    ccc.KnownScript.XUdt,
+    xudtArgs
+  );
+  ...
+}
+```
+
+This function accepts two parameters:
+
+- `privKey`: The private key of the issuer
+- `amount`: The amount of tokens
+
+Note that we aim to create an output Cell whose <Tooltip>Type Script</Tooltip> is an xUDT Script. The args of this xUDT Script are the issuer's Lock Script Hash, which is why we include the following lines of code:
+
+```ts
+const lockScript = (await signer.getAddressObjSecp256k1()).script;
+const xudtArgs = lockScript.hash() + "00000000";
+```
+
+Also, note that the `00000000` here is just a placeholder. To unlock more capabilities of the xUDT Script, this placeholder can contain specific data. However, we don't need to concern ourselves with this detail at the moment.
+
+Further down in the function, you'll see that the complete target output Cell of our custom token appears as follows:
+
+```ts
+const tx = ccc.Transaction.from({
+  outputs: [{ lock: lockScript, type: typeScript }],
+  outputsData: [ccc.numLeToBytes(amount, 16)],
+});
+```
+
+Note that the `outputsData` field is the amount of the custom token.
+
+Next, to complete our `issueToken` function, we just use the `helpers.TransactionSkeleton` to build the transaction with our desired output Cells.
+
+```ts
+  await tx.addCellDepsOfKnownScripts(signer.client, ccc.KnownScript.XUdt);
+  // additional 0.001 ckb for tx fee
+  // Complete missing parts for transaction
+  await tx.completeInputsByCapacity(signer);
+  await tx.completeFeeBy(signer, 1000);
+
+...
+```
+
+Lastly, we do the signing and sending of the transaction:
+
+```ts
+const txHash = await signer.sendTransaction(tx);
+console.log("The transaction hash is", hash);
+```
+
+### Token Info & Holders
+
+Since we have issued a custom token, the next step will be checking out this token and viewing its holders. To do that, we write a `queryIssuedTokenCells` in the `lib.ts` file:
+
+```ts
+export async function queryIssuedTokenCells(xudtArgs: HexString) {
+  const typeScript = await ccc.Script.fromKnownScript(
+    cccClient,
+    ccc.KnownScript.XUdt,
+    xudtArgs
+  );
+
+  const collected: ccc.Cell[] = [];
+  const collector = cccClient.findCellsByType(typeScript, true);
+  for await (const cell of collector) {
+    collected.push(cell);
+  }
+  return collected;
+}
+```
+
+Note that to query a custom token Cell, we must know its xUDTArgs. As explained in the high-level ideas for xUDT Scripts, this xUDTArgs functions like the unique ID for the token you issued.
+
+Thus, `queryIssuedTokenCells` will accept only one parameter: xudtArgs. We then construct a Type Script with this xudtArgs and use `cccClient.findCellsByType(typeScript, true);` to query the Live Cells that possess such a Type Script.
+
+By identifying the Lock Scripts of these Live Cells, we can determine that those custom tokens now belong to the individual who can unlock this Lock Script. Consequently, we know who the token holders are.
+
+### Transfer Custom Token
+
+The next step you want to do is probably sending your tokens to someone else. To do that, you will replace the Lock Script of the custom token Cell with the receiver's Lock Script. Therefore, the receiver can unlock the custom token Cell. In this way, the token is transferred from you to other people.
+
+Check out the `transferTokenToAddress` function in `lib.ts` file.
+
+```ts
+export async function transferTokenToAddress(
+  udtIssuerArgs: string,
+  senderPrivKey: string,
+  amount: string,
+  receiverAddress: string,
+){
+  ...
+}
+```
+
+The function use `udtIssuerArgs` to build the Type Script from the custom token. It then collects Live Cells which match the Type Script and the Lock Script of the `senderLockScript`, effectively saying, "give me the custom token Cells that belong to the sender (the sender can unlock the Lock Script).".
+
+With all these Live Cells, we can build the transaction to produce custom token Cells with the required amount and the receiver's Lock Scripts from the input Cells.
+
+```ts
+const signer = new ccc.SignerCkbPrivateKey(cccClient, senderPrivKey);
+const senderLockScript = (await signer.getAddressObjSecp256k1()).script;
+const receiverLockScript = (
+  await ccc.Address.fromString(receiverAddress, cccClient)
+).script;
+
+const xudtArgs = udtIssuerArgs;
+const xUdtType = await ccc.Script.fromKnownScript(
+  cccClient,
+  ccc.KnownScript.XUdt,
+  xudtArgs
+);
+
+const tx = ccc.Transaction.from({
+  outputs: [{ lock: receiverLockScript, type: xUdtType }],
+  outputsData: [ccc.numLeToBytes(amount, 16)],
+});
+await tx.completeInputsByUdt(signer, xUdtType);
+```
+
+Notice that if there is any token amount remaining, we need to return the change amount along with change capacities to the sender.
+
+```ts
+const balanceDiff =
+  (await tx.getInputsUdtBalance(signer.client, xUdtType)) -
+  tx.getOutputsUdtBalance(xUdtType);
+console.log("balanceDiff: ", balanceDiff);
+if (balanceDiff > ccc.Zero) {
+  tx.addOutput(
+    {
+      lock: senderLockScript,
+      type: xUdtType,
+    },
+    ccc.numLeToBytes(balanceDiff, 16)
+  );
+}
+await tx.addCellDepsOfKnownScripts(signer.client, ccc.KnownScript.XUdt);
+
+// Complete missing parts for transaction
+await tx.completeInputsByCapacity(signer);
+await tx.completeFeeBy(signer, 1000);
+
+const txHash = await signer.sendTransaction(tx);
+```
+
+---
+
+## Congratulations!
+
+After following this tutorial, you have mastered how custom tokens work on CKB. Here's a quick recap:
+
+- Create a CKB transaction containing a xUDT Cell in the outputs
+- The data of the xUDT Cell contains the amount number of the token
+- Query the custom token Cell by passing the Lock Script Hash of the token issuer
+- Transfer tokens to another account by replacing the Lock Script.
+
+## Next Step
+
+<SwitchToTestnet readmeLink="dApp/xudt" />
+
+## Additional Resources
+
+- [xUDT High-Level Explanation](/docs/assets-token-standards/xudt)
+- xUDT specs: [RFC-0052-extensible-udt](https://github.com/XuJiandong/rfcs/blob/xudt/rfcs/0052-extensible-udt/0052-extensible-udt.md)
+- sUDT specs: [RFC-0025-simple-udt](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0025-simple-udt/0025-simple-udt.md)
+- CKB transaction structure: [RFC-0022-transaction-structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0022-transaction-structure/0022-transaction-structure.md)
+- CKB data structure basics: [RFC-0019-data-structure](https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0019-data-structures/0019-data-structures.md)

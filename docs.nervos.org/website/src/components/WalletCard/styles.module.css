@@ -1,0 +1,52 @@
+@import "@css/customVariables.css";
+
+.cardContainer {
+  width: 100%;
+  border-radius: 16px;
+  padding: 0.5rem 1rem 0.5rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  text-decoration: none !important;
+  color: var(--text-primary) !important;
+}
+.smallCard {
+  border: 1px solid transparent;
+  height: 3rem;
+  background-color: var(--surface-03);
+  border-radius: 12px;
+}
+.cardContainer:hover {
+  border: 1px solid var(--border-accent);
+  background-color: var(--hover);
+}
+.iconContainer {
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rightContainer {
+  display: flex;
+  flex-direction: column;
+  margin-left: 8px;
+  min-width: 0;
+}
+.title {
+  font-size: 1em;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+.tags > p:not(:last-child)::after {
+  content: ",";
+}
+.tag {
+  font-size: 0.75em;
+  color: var(--text-secondary);
+  margin: 0;
+}

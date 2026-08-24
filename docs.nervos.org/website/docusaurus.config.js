@@ -1,0 +1,714 @@
+import path from "path";
+import math from "remark-math";
+import katex from "rehype-katex";
+
+const lightCodeTheme = require("./src/prism/light");
+const darkCodeTheme = require("./src/prism/dark");
+
+const repoBranch =
+  process.env.VERCEL_GIT_COMMIT_REF || process.env.DEPLOY_BRANCH || "master";
+const enableGtag =
+  process.env.VERCEL_ENV === "production" || process.env.ENABLE_GTAG === "true";
+
+/** @type {import('@docusaurus/types').Config} */
+const config = {
+  title: "Nervos CKB",
+  tagline: "Nervos CKB",
+  url: "https://docs.nervos.org",
+  baseUrl: "/",
+  organizationName: "nervosnetwork",
+  projectName: "docs-new",
+  headTags: [
+    ...(enableGtag
+      ? [
+          {
+            tagName: "script",
+            attributes: {
+              defer: "true",
+              src: "https://umami.retric.uk/script.js",
+              "data-website-id": "f5709da4-2855-4563-9d49-b0cbbf1fb615",
+              "data-domains": "docs.nervos.org",
+            },
+          },
+        ]
+      : []),
+    {
+      tagName: "meta",
+      attributes: {
+        name: "algolia-site-verification",
+        content: "7DB3E865E8FA4713",
+      },
+    },
+  ],
+  stylesheets: [
+    {
+      href: "https://cdn.jsdelivr.net/npm/katex@0.13.24/dist/katex.min.css",
+      type: "text/css",
+      integrity:
+        "sha384-odtC+0UGzzFL/6PNoE8rX/SPcQDXBJ+uRepguP4QkPCm2LBxH3FA3y+fKSiJ+AmM",
+      crossorigin: "anonymous",
+    },
+  ],
+  favicon: "img/favicon.png",
+  customFields: {
+    oldDocSiteUrl: "https://docs-old.nervos.org",
+    gaGtag: enableGtag,
+    disableHeaderTitle: true,
+    socialLinks: [
+      {
+        label: "Twitter",
+        icon: "img/footer_twitter.png",
+        url: "https://twitter.com/nervosnetwork",
+      },
+      {
+        label: "Blog",
+        icon: "img/footer_medium.png",
+        url: "https://medium.com/nervosnetwork",
+      },
+      {
+        label: "Telegram",
+        icon: "img/footer_telegram.png",
+        url: "https://t.me/nervosnetwork",
+      },
+      {
+        label: "Reddit",
+        icon: "img/footer_reddit.png",
+        url: "https://www.reddit.com/r/NervosNetwork/",
+      },
+      {
+        label: "YouTube",
+        icon: "img/footer_youtube.png",
+        url: "https://www.youtube.com/channel/UCONuJGdMzUY0Y6jrPBOzH7A",
+      },
+      {
+        label: "Forum",
+        icon: "img/footer_forum.png",
+        url: "https://talk.nervos.org/",
+      },
+    ],
+    examplesBaseUrl: `https://github.com/nervosnetwork/docs.nervos.org/tree/${repoBranch}/examples/`,
+  },
+  onBrokenLinks: "log",
+  onBrokenMarkdownLinks: "log",
+  presets: [
+    [
+      "@docusaurus/preset-classic",
+      {
+        ...(enableGtag
+          ? {
+              gtag: {
+                trackingID: "G-1PH980CNX1",
+                anonymizeIP: true,
+              },
+            }
+          : {}),
+        docs: {
+          path: "./docs",
+          breadcrumbs: false,
+          showLastUpdateTime: true,
+          showLastUpdateAuthor: false,
+          sidebarPath: require.resolve("./sidebars.js"),
+          remarkPlugins: [math],
+          rehypePlugins: [katex],
+          editUrl:
+            "https://github.com/nervosnetwork/docs-new/tree/develop/website",
+        },
+        blog: {
+          path: "blog",
+          // Simple use-case: string editUrl
+          // editUrl: 'https://github.com/facebook/docusaurus/edit/main/website/',
+          // Advanced use-case: functional editUrl
+          editUrl: ({ locale, blogDirPath, blogPath, permalink }) =>
+            `https://github.com/nervosnetwork/docs-new/tree/develop/website/${blogDirPath}/${blogPath}`,
+          editLocalizedFiles: false,
+          blogTitle: "Nervos Blog",
+          blogDescription: "Blog Posts About Nervos Blockchain",
+          blogSidebarCount: 20,
+          blogSidebarTitle: "All Posts",
+          routeBasePath: "blog",
+          include: ["**/*.{md,mdx}"],
+          exclude: [
+            "**/_*.{js,jsx,ts,tsx,md,mdx}",
+            "**/_*/**",
+            "**/*.test.{js,jsx,ts,tsx}",
+            "**/__tests__/**",
+          ],
+          postsPerPage: 1,
+          blogListComponent: "@theme/BlogListPage",
+          blogPostComponent: "@theme/BlogPostPage",
+          blogTagsListComponent: "@theme/BlogTagsListPage",
+          blogTagsPostsComponent: "@theme/BlogTagsPostsPage",
+          processBlogPosts: async ({ blogPosts }) =>
+            blogPosts.sort(
+              (a, b) =>
+                Date.parse(a.metadata.date) - Date.parse(b.metadata.date)
+            ),
+          truncateMarker: /<!--\s*(truncate)\s*-->/,
+          showReadingTime: true,
+          feedOptions: {
+            title: "Nervos Blog",
+            description: "Blog Posts About Nervos Blockchain",
+            createFeedItems: async (params) => {
+              const { blogPosts, defaultCreateFeedItems, ...rest } = params;
+              return defaultCreateFeedItems({
+                // keep only the 10 most recent blog posts in the feed
+                blogPosts: blogPosts.filter((item, index) => index < 10),
+                ...rest,
+              });
+            },
+          },
+        },
+        theme: {
+          customCss: [path.join(__dirname, "./src/css/customTheme.css")],
+        },
+      },
+    ],
+  ],
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          {
+            from: "/docs",
+            to: "/",
+          },
+          {
+            from: "/docs/reference/rpc/",
+            to: "/docs/getting-started/rpcs",
+          },
+          {
+            from: "/docs/reference/tools",
+            to: "/docs/sdk-and-devtool/devtool",
+          },
+          {
+            from: "/docs/basics/concepts/economics",
+            to: "/docs/assets-token-standards/economics",
+          },
+          {
+            from: "/docs/basics/concepts/cell-model",
+            to: "/docs/ckb-fundamentals/cell-model",
+          },
+          {
+            from: "/docs/basics/concepts/ckb-vm",
+            to: "/docs/ckb-fundamentals/ckb-vm",
+          },
+          {
+            from: "/docs/basics/concepts/consensus",
+            to: "/docs/ckb-fundamentals/consensus",
+          },
+          {
+            from: "/docs/basics/concepts/cryptowallet",
+            to: "/docs/integrate-wallets/intro-to-wallets",
+          },
+          {
+            from: "/docs/basics/concepts/nervos-blockchain",
+            to: "/docs/ckb-fundamentals/nervos-blockchain",
+          },
+          {
+            from: "/docs/basics/glossary/",
+            to: "/docs/tech-explanation/glossary",
+          },
+          {
+            from: "/docs/basics/guides/mainnet",
+            to: "/docs/node/run-mainnet-node",
+          },
+          {
+            from: "/docs/basics/guides/get-ckb",
+            to: "https://docs-old.nervos.org/docs/basics/guides/get-ckb",
+          },
+          {
+            from: "/docs/basics/guides/mining-ckb",
+            to: "/docs/mining/guide",
+          },
+          {
+            from: "/docs/reference/halving",
+            to: "/docs/mining/halving",
+          },
+          {
+            from: [
+              "/docs/basics/guides/crypto wallets/neuron",
+              "/docs/basics/guides/neuron",
+            ],
+            to: "https://docs-old.nervos.org/docs/basics/guides/crypto wallets/neuron",
+          },
+          {
+            from: "/docs/basics/tools",
+            to: "https://docs-old.nervos.org/docs/basics/tools",
+          },
+          {
+            from: "/docs/script/minimal-script",
+            to: "/docs/script/rust/rust-example-minimal-script",
+          },
+          {
+            from: "/docs/script/sudt-script",
+            to: "/docs/script/rust/rust-example-sudt-script",
+          },
+          {
+            from: "/docs/history-and-hard-forks/history-vm-version",
+            to: "/docs/script/vm-version",
+          },
+          {
+            from: "/docs/sdk-and-devtool/lumos",
+            to: "/docs/sdk-and-devtool/ccc",
+          },
+          {
+            from: [
+              "/docs/basics/guides/crypto wallets/imtoken",
+              "/docs/basics/guides/imtoken",
+            ],
+            to: "https://docs-old.nervos.org/docs/basics/guides/crypto wallets/imtoken",
+          },
+          {
+            from: "/docs/tech-explanation/ckb-vs-btc",
+            to: "/docs/ckb-fundamentals/ckb-vs-btc",
+          },
+          {
+            from: "/docs/tech-explanation/ckb-address",
+            to: "/docs/ckb-fundamentals/ckb-address",
+          },
+          {
+            from: "/docs/script-course/intro-to-script-1",
+            to: "/docs/script/intro-to-script",
+          },
+          {
+            from: "/docs/script-course/intro-to-script-2",
+            to: "/docs/script/program-language-for-script",
+          },
+          {
+            // Class 3: UDT
+            from: "/docs/script-course/intro-to-script-3",
+            to: "/docs/script/rust/rust-example-sudt-script",
+          },
+          {
+            // Class 4: WebAssembly on CKB (no modern equivalent page)
+            from: "/docs/script-course/intro-to-script-4",
+            to: "/docs/script/program-language-for-script",
+          },
+          {
+            // Class 5: Debugging
+            from: "/docs/script-course/intro-to-script-5",
+            to: "/docs/script/debug-script",
+          },
+          {
+            // Class 6: Type ID
+            from: "/docs/script-course/intro-to-script-6",
+            to: "/docs/script/type-id",
+          },
+          {
+            // Class 7: Advanced Duktape Examples
+            from: "/docs/script-course/intro-to-script-7",
+            to: "/docs/script/js/js-vm",
+          },
+          {
+            // Class 8: Performant WASM (no modern equivalent page)
+            from: "/docs/script-course/intro-to-script-8",
+            to: "/docs/script/program-language-for-script",
+          },
+          {
+            // Class 9: Cycle Reductions in Duktape Script
+            from: "/docs/script-course/intro-to-script-9",
+            to: "/docs/script/vm-cycle-limits",
+          },
+          {
+            // Class 10: Language Choices
+            from: "/docs/script-course/intro-to-script-10",
+            to: "/docs/script/program-language-for-script",
+          },
+          {
+            from: "/docs/tech-explanation/ckb-vm",
+            to: "/docs/ckb-fundamentals/ckb-vm",
+          },
+          {
+            from: "/docs/tech-explanation/cell-model",
+            to: "/docs/ckb-fundamentals/cell-model",
+          },
+          {
+            from: "/docs/basics/faq/general",
+            to: "https://docs-old.nervos.org/docs/basics/faq/general",
+          },
+          {
+            from: ["/docs/reference/economics", "/docs/concepts/supply"],
+            to: "/docs/assets-token-standards/economics",
+          },
+          {
+            from: "/docs/script/ckb-script-ipc",
+            to: "/docs/script/ckb-ipc",
+          },
+          {
+            from: "/docs/script/rust/rust-example-spawn-script",
+            to: "/docs/script/rust/rust-api-spawn",
+          },
+          {
+            from: ["/docs/wallets", "/getting-started/wallet"],
+            to: "/docs/integrate-wallets/intro-to-wallets",
+          },
+          {
+            from: "/docs/getting-started/blockchain-networks",
+            to: "/docs/getting-started/ckb-networks",
+          },
+          {
+            // Malformed external links that picked up trailing CJK punctuation
+            from: "/docs/script/intro-to-script))。",
+            to: "/docs/script/intro-to-script",
+          },
+          {
+            from: "/docs/getting-started/how-ckb-works))。",
+            to: "/docs/getting-started/how-ckb-works",
+          },
+          {
+            from: "/docs/concepts/ckb-vm",
+            to: "/docs/ckb-fundamentals/ckb-vm",
+          },
+          {
+            from: [
+              "/docs/tech-explanation/previous-output",
+              "/docs/tech-explanation/cellinput",
+            ],
+            to: "/docs/tech-explanation/inputs",
+          },
+          {
+            from: "/docs/basics/guides/testnet",
+            to: "/docs/node/run-testnet-node",
+          },
+          {
+            from: "/docs/getting-started/devtool",
+            to: "/docs/sdk-and-devtool/devtool",
+          },
+          {
+            from: "/docs/dapp/rpcs",
+            to: "/docs/getting-started/rpcs",
+          },
+          {
+            from: "/docs/tech-explanation/header-dep",
+            to: "/docs/tech-explanation/header-deps",
+          },
+          {
+            from: "/docs/tech-explanation/outpoint",
+            to: "/docs/tech-explanation/glossary#outpoint",
+          },
+          {
+            from: "/docs/tech-explanation/dep-type",
+            to: "/docs/tech-explanation/glossary#dep-type",
+          },
+          {
+            from: "/docs/common-scripts/spore-protocol",
+            to: "/docs/ecosystem-scripts/spore-protocol",
+          },
+          {
+            from: "/docs/common-scripts/xudt",
+            to: "/docs/ecosystem-scripts/xudt",
+          },
+          {
+            // The blog has been removed. It used postsPerPage: 1 sorted by
+            // ascending date, so /blog/page/3 was "Introduction to CKB Script
+            // Programming 3: UDT" — send it to the modern Script-section
+            // equivalent (mirrors the /docs/script-course/intro-to-script-3
+            // redirect above)
+            from: "/blog/page/3",
+            to: "/docs/script/rust/rust-example-sudt-script",
+          },
+          {
+            // 2019-era docs routes (root-level URLs from the pre-Docusaurus
+            // site). Both extensionless and .html variants circulated in old
+            // bookmarks and external posts.
+            from: ["/getting-started/mine", "/getting-started/mine.html"],
+            to: "/docs/mining/guide",
+          },
+          {
+            from: [
+              "/getting-started/run-node",
+              "/getting-started/run-node.html",
+            ],
+            to: "/docs/node/node-overview",
+          },
+          {
+            from: [
+              "/references/neuron-wallet-guide.html",
+              "/references/neuron-wallet-guide",
+            ],
+            to: "/docs/integrate-wallets/intro-to-wallets",
+          },
+          {
+            // Retired labs tutorial; the archived version lives on docs-old
+            from: "/docs/labs/sudtbycapsule",
+            to: "https://docs-old.nervos.org/docs/labs/sudtbycapsule",
+          },
+        ],
+        createRedirects(existingPath) {
+          if (
+            existingPath.includes("/docs/essays/") ||
+            existingPath.includes("/docs/labs/")
+          ) {
+            return [`https://docs-old.nervos.org${existingPath}`];
+          }
+          return undefined;
+        },
+      },
+    ],
+    function myPlugin() {
+      return {
+        name: "custom-webpack-plugin",
+        configureWebpack() {
+          return {
+            resolve: {
+              alias: {
+                "@components": path.resolve(__dirname, "src/components"),
+                "@css": path.resolve(__dirname, "src/css"),
+              },
+            },
+          };
+        },
+      };
+    },
+  ],
+  themeConfig: {
+    prism: {
+      additionalLanguages: ["bash", "powershell", "rust", "json"],
+      theme: lightCodeTheme,
+      darkTheme: darkCodeTheme,
+    },
+    colorMode: {
+      defaultMode: "dark",
+      disableSwitch: false,
+      respectPrefersColorScheme: false,
+    },
+    navbar: {
+      logo: {
+        src: "img/logo-dark.png",
+        width: 89,
+        height: 32,
+        alt: "Nervos CKB Docs",
+        href: "/",
+      },
+      items: [
+        {
+          type: "custom-megaMenu",
+          label: "Build",
+          position: "left",
+          menuId: "build",
+          activeBaseRegex:
+            "/(getting-started|dapp|script|how-tos|integrate-wallets|sdk-and-devtool|ai-agents|serialization)/",
+          primaryItems: [
+            {
+              title: "Getting Started",
+              description: "Basics for onboarding to CKB",
+              href: "/docs/getting-started/how-ckb-works",
+              icon: "squareRocket",
+              activeBaseRegex: "/getting-started/",
+            },
+            {
+              title: "DApp Tutorials",
+              description: "Step-by-step examples for building on CKB",
+              href: "/docs/dapp/transfer-ckb",
+              icon: "squareDapp",
+              activeBaseRegex: "/dapp/",
+            },
+            {
+              title: "Script Development",
+              description: "Implement smart-contract logic on CKB",
+              href: "/docs/script/intro-to-script",
+              icon: "squareScript",
+              activeBaseRegex: "/(script|ecosystem-scripts)/",
+            },
+            {
+              title: "AI Resources",
+              description: "Build with CKB-aware agents and prompts",
+              href: "/docs/ai-agents/ai-resource",
+              icon: "squareAi",
+              activeBaseRegex: "/ai-agents/",
+            },
+          ],
+
+          otherLabel: "OTHER",
+          otherItems: [
+            {
+              title: "How-Tos",
+              href: "/docs/how-tos/how-to-sign-a-tx",
+              icon: "howto",
+              activeBaseRegex: "/how-tos/",
+            },
+            {
+              title: "Integrate Wallets",
+              href: "/docs/integrate-wallets/intro-to-wallets",
+              icon: "wallet",
+              activeBaseRegex: "/integrate-wallets/",
+            },
+            {
+              title: "SDK & Dev Tools",
+              href: "/docs/sdk-and-devtool/devtool",
+              icon: "tool",
+              activeBaseRegex: "/sdk-and-devtool/",
+            },
+            {
+              title: "Serialization (Molecule)",
+              href: "/docs/serialization/serialization-molecule-in-ckb",
+              icon: "molecule",
+              activeBaseRegex: "/serialization/",
+            },
+          ],
+        },
+        {
+          type: "custom-megaMenu",
+          label: "Learn",
+          position: "left",
+          menuId: "learn",
+          activeBaseRegex:
+            "/(tech-explanation|ckb-fundamentals|ckb-features|assets-token-standards)/",
+          primaryItems: [
+            {
+              title: "What Makes CKB Unique",
+              description: "Design choices behind CKB",
+              href: "/docs/ckb-features/extreme-decentralization",
+              icon: "squareFeature",
+              activeBaseRegex: "/ckb-features/",
+            },
+            {
+              title: "CKB Fundamentals",
+              description: "Core concepts of how CKB works",
+              href: "/docs/ckb-fundamentals/nervos-blockchain",
+              icon: "squareConcept",
+              activeBaseRegex: "/ckb-fundamentals/",
+            },
+            {
+              title: "Core Structures",
+              description: "Detailed breakdown of core components",
+              href: "/docs/tech-explanation/cell",
+              icon: "squareStructure",
+              activeBaseRegex: "^.*tech-explanation(?!/glossary)",
+            },
+          ],
+
+          otherLabel: "OTHER",
+          otherItems: [
+            {
+              title: "Assets & Token Standards",
+              href: "/docs/assets-token-standards/assets-overview",
+              icon: "token",
+              activeBaseRegex: "/assets-token-standards/",
+            },
+            {
+              title: "Glossary",
+              href: "/docs/tech-explanation/glossary",
+              icon: "resource",
+              activeBaseRegex: "/tech-explanation/glossary",
+            },
+          ],
+        },
+        {
+          type: "custom-megaMenu",
+          label: "Network",
+          position: "left",
+          menuId: "network",
+          activeBaseRegex: "/(node|mining|history-and-hard-forks)/",
+          primaryItems: [
+            {
+              title: "Run a Node",
+              description: "Install, configure, and operate CKB nodes",
+              href: "/docs/node/node-overview",
+              icon: "squareNodes",
+              activeBaseRegex: "/node/",
+            },
+            {
+              title: "History & Hard Forks",
+              description: "Timeline and evolution of the CKB network",
+              href: "/docs/history-and-hard-forks/intro-to-hard-fork",
+              icon: "squareHistory",
+              activeBaseRegex: "/history-and-hard-forks/",
+            },
+            {
+              title: "Mining",
+              description: "Mining mechanics, tools, and rewards",
+              href: "/docs/mining/guide",
+              icon: "squareMine",
+              activeBaseRegex: "/mining/",
+            },
+          ],
+        },
+        {
+          type: "custom-megaMenu",
+          label: "Community",
+          position: "left",
+          menuId: "community",
+          activeBaseRegex: "/(ecosystem)",
+          primaryItems: [
+            {
+              title: "Projects",
+              description:
+                "Applications, tools, and initiatives in the ecosystem",
+              href: "/docs/ecosystem/projects",
+              icon: "squareProject",
+              activeBaseRegex: "/ecosystem/projects",
+            },
+            {
+              title: "Contribute",
+              description: "Ways to participate and support the network",
+              href: "/docs/ecosystem/contribute",
+              icon: "squareContribution",
+              activeBaseRegex: "/ecosystem/contribute",
+            },
+          ],
+          otherLabel: "RESOURCES",
+          otherCol: 2,
+          otherItems: [
+            {
+              title: "Positioning Paper",
+              href: "https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0001-positioning/0001-positioning.md",
+              external: true,
+            },
+            {
+              title: "CKB RFCs",
+              href: "https://github.com/nervosnetwork/rfcs",
+              external: true,
+            },
+            {
+              title: "Fiber Network",
+              href: "https://www.fiber.world/docs",
+              external: true,
+            },
+            {
+              title: "Spore Protocol",
+              href: "https://docs.spore.pro/",
+              external: true,
+            },
+            {
+              title: "CKB Academy",
+              href: "https://academy.ckb.dev/",
+              external: true,
+            },
+            {
+              title: "CKB Cookbook",
+              href: "https://cookbook.ckbdapps.com/",
+              external: true,
+            },
+            {
+              title: "CKB Dev Log",
+              href: "https://github.com/nervosnetwork/ckb/discussions/categories/dev-log",
+              external: true,
+            },
+          ],
+        },
+
+        {
+          type: "search",
+          position: "right",
+          className: "navbar-search",
+        },
+        {
+          type: "html",
+          position: "right",
+          value:
+            '<a class="help-flex" href="https://discord.gg/4Jcw8MwEEv" target="__blank"><img alt="Discord for help" src="/svg/icon-discord.svg" width={24} height={24}><p class="help-text">Get Help</p></a>',
+          className: "navbar-help",
+        },
+      ],
+    },
+    algolia: {
+      appId: "WYC5SBQV9M",
+      apiKey: "9acc3e7ff4ae448feb832bc90204bf2e",
+      indexName: "Nervos CKB Official Doc",
+    },
+  },
+};
+
+export default config;

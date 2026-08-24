@@ -1,0 +1,95 @@
+@import "@css/customVariables.css";
+
+.cardContainer {
+  width: 100%;
+  border-radius: 20px;
+  background-color: var(--surface-02);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+  cursor: pointer;
+  text-decoration: none !important;
+  color: var(--text-secondary) !important;
+}
+.cardContainer:hover {
+  border: 1px solid var(--border-accent);
+}
+.topContainer {
+  width: 100%;
+  display: inline-block;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.banner {
+  width: 100%;
+  height: auto;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  display: block;
+}
+
+.tagList {
+  display: flex;
+  align-items: center;
+}
+
+.tag {
+  background-color: var(--text-link);
+  font-size: 0.75em;
+  color: var(--text-inverse);
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tagList > .tag:last-child {
+  margin-right: 0;
+}
+
+.bottomContainer {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+  padding: 0 1rem;
+}
+.description {
+  margin: 0;
+  height: 3.5rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title,
+.description,
+.tagList {
+  margin-bottom: 0.5rem;
+}
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.links > a:not(:last-child) {
+  margin-right: 0.5rem;
+}
+.iconContainer {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--surface-03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.iconContainer:hover {
+  background-color: var(--surface-03-hover);
+}
