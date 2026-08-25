@@ -99,7 +99,7 @@ The application was restructured into a single-page dApp featuring a modern dark
 
 2. **Pre-Mint Storage Cost Calculator (`lib.ts`)**:
    - Computes required CKB capacity before transaction submission:
-     $$\text{Capacity Required} = \text{File Size (bytes)} + 160 \text{ bytes (Cell Header & Script Overhead)} + 1 \text{ CKB (Fee Buffer)}$$
+     $$\text{Capacity Required} = \text{File Size (bytes)} + 160 \text{ bytes (Cell Header and Script Overhead)} + 1 \text{ CKB (Fee Buffer)}$$
    - Prevents insufficient capacity failures prior to network broadcast.
 
 3. **Drag-and-Drop Uploader (`index.tsx`)**:
