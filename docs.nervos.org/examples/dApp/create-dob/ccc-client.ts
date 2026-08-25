@@ -35,11 +35,13 @@ export function buildCccClient(network: Network) {
 
 export function readEnvNetwork(): Network {
   const network = process.env.NETWORK;
-  const defaultNetwork = 'testnet';
+  const defaultNetwork: Network = 'testnet';
   if (!network) return defaultNetwork;
 
   if (!['devnet', 'testnet', 'mainnet'].includes(network)) {
-    return defaultNetwork;
+    throw new Error(
+      `Invalid NETWORK environment variable: "${network}". Expected one of: "devnet", "testnet", "mainnet".`
+    );
   }
 
   return network as Network;

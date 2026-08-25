@@ -108,12 +108,19 @@ export type PredefinedDevnetSporeScriptName =
   | "Lua";
 
 //@ts-ignore
-export const SPORE_CONFIG: SporeConfig<PredefinedDevnetSporeScriptName> = readEnvNetwork() === "testnet" ? predefinedSporeConfigs.Testnet :  {
-  lumos: lumosConfig,
-  ckbNodeUrl: "http://localhost:28114", // the default offckb devnet proxy rpc url
-  ckbIndexerUrl: "http://localhost:28114",
-  defaultTags: ["latest"],
-  scripts: {
+const envNet = readEnvNetwork();
+export const SPORE_CONFIG: SporeConfig<PredefinedDevnetSporeScriptName> =
+  envNet === "mainnet"
+    ? (predefinedSporeConfigs.Mainnet as any)
+    : envNet === "testnet"
+    ? predefinedSporeConfigs.Testnet
+    : envNet === "devnet"
+    ? {
+        lumos: lumosConfig,
+        ckbNodeUrl: "http://localhost:28114", // the default offckb devnet proxy rpc url
+        ckbIndexerUrl: "http://localhost:28114",
+        defaultTags: ["latest"],
+        scripts: {
     Spore: {
       versions: [
         {
@@ -221,4 +228,4 @@ export const SPORE_CONFIG: SporeConfig<PredefinedDevnetSporeScriptName> = readEn
       ],
     },
   },
-};
+} : (() => { throw new Error(`Unsupported network: ${envNet}`); })();
